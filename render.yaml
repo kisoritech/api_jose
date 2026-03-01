@@ -1,0 +1,18 @@
+# render.yaml - Configuração para deploy automático no Render
+services:
+  - type: web
+    name: api
+    env: node
+    plan: free
+    # Branch para deploy automático
+    branch: main
+    # Comando para instalar dependências
+    buildCommand: npm install
+    # Comando para iniciar a aplicação
+    startCommand: npm start
+    # Variáveis de ambiente
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000

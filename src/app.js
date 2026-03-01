@@ -1,0 +1,46 @@
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const morgan = require('morgan');
+
+const routes = require('./routes');
+const errorMiddleware = require('./middlewares/errorMiddleware');
+
+const app = express();
+
+// Segurança
+app.use(helmet());
+app.set('trust proxy', 1);
+
+// Logging (desabilitar em testes)
+if (process.env.NODE_ENV !== 'test') {
+  app.use(morgan('combined'));
+}
+
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // 100 requisições por IP
+  message: 'Muitas requisições deste IP, tente novamente mais tarde.'
+});
+app.use(limiter);
+
+// CORS
+app.use(cors());
+
+// Body parser
+app.use(express.json());
+
+// Rotas
+app.use('/api', routes);
+
+// Health check (útil para Render)
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK' });
+});
+
+// Middleware de erro (deve ser o último)
+app.use(errorMiddleware);
+
+module.exports = app;
