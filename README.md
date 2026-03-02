@@ -109,6 +109,26 @@ POST /api/auth/login
   "email": "joao@example.com",
   "password": "123456"
 }
+
+> **Resposta** (token + dados):
+> ```json
+> {
+>   "token": "eyJhbGciOiJIUzI1NiIs...",
+>   "user": {
+>     "id": 1,
+>     "email": "joao@example.com",
+>     "perfil": "vendedor",
+>     "nome": "João"
+>   }
+> }
+> ```
+
+# Consultar usuário autenticado
+GET /api/auth/me  (envia header Authorization: Bearer ...)
+
+> **Nota**: se você adicionou usuários manualmente no banco com senha em texto
+> simples, o endpoint de login irá detectar isso, rehash a senha e atualizar o
+> registro automaticamente na primeira autenticação.
 ```
 
 ### Clientes

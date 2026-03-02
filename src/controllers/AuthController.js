@@ -30,11 +30,28 @@ class AuthController {
       const user = rows[0];
       if (!user) return res.status(400).json({ error: 'Credenciais inválidas' });
 
+      // se senha_hash não parece um bcrypt (prefixo $2), atualizamos
+      if (!user.senha_hash.startsWith('$2')) {
+        // hash antigo em texto simples, substitui
+        const newHash = await bcrypt.hash(user.senha_hash, 8);
+        await pool.execute('UPDATE usuarios SET senha_hash = ? WHERE id = ?', [newHash, user.id]);
+        user.senha_hash = newHash;
+      }
+
       const match = await bcrypt.compare(password, user.senha_hash);
       if (!match) return res.status(400).json({ error: 'Credenciais inválidas' });
 
       const token = generateToken({ id: user.id });
-      res.json({ token });
+       // also return basic user info so client can use immediately
+       res.json({
+         token,
+         user: {
+           id: user.id,
+           email: user.email,
+           perfil: user.perfil,
+           nome: user.nome
+         }
+       });
     } catch (err) {
       next(err);
     }
