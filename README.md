@@ -46,7 +46,14 @@ Servidor rodando em `http://localhost:3000`
 
 ## 🔐 Variáveis de Ambiente
 
-Crie `.env` na raiz:
+Crie `.env` na raiz (copiando o arquivo de exemplo):
+
+```bash
+cp .env.example .env
+```
+
+**O aplicativo só lê `.env`**, o `.env.example` serve apenas como modelo.
+Edite o `.env` com os valores desejados:
 
 ```env
 NODE_ENV=development
