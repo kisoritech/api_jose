@@ -19,10 +19,16 @@ class ClienteController {
 
   async criar(req, res, next) {
     try {
-      const { nome, email, telefone } = req.body;
+      const { nome, email, telefone, tipo_pessoa } = req.body;
+      
+      // validação: nome é obrigatório
+      if (!nome || typeof nome !== 'string' || nome.trim() === '') {
+        return res.status(400).json({ error: 'Campo "nome" é obrigatório' });
+      }
+
       const [result] = await pool.execute(
-        'INSERT INTO clientes (nome, email, telefone) VALUES (?, ?, ?)',
-        [nome, email, telefone]
+        'INSERT INTO clientes (nome, email, telefone, tipo_pessoa) VALUES (?, ?, ?, ?)',
+        [nome.trim(), email ?? null, telefone ?? null, tipo_pessoa ?? 'fisica']
       );
       res.status(201).json({ id: result.insertId });
     } catch (err) { next(err); }
@@ -31,11 +37,33 @@ class ClienteController {
   async atualizar(req, res, next) {
     try {
       const { id } = req.params;
-      const { nome, email, telefone } = req.body;
-      await pool.execute(
-        'UPDATE clientes SET nome = ?, email = ?, telefone = ? WHERE id = ?',
-        [nome, email, telefone, id]
-      );
+      const { nome, email, telefone, tipo_pessoa } = req.body;
+
+      const fields = [];
+      const params = [];
+      
+      if (nome !== undefined && nome !== null) { 
+        fields.push('nome = ?'); 
+        params.push(String(nome).trim()); 
+      }
+      if (email !== undefined) { 
+        fields.push('email = ?'); 
+        params.push(email ?? null); 
+      }
+      if (telefone !== undefined) { 
+        fields.push('telefone = ?'); 
+        params.push(telefone ?? null); 
+      }
+      if (tipo_pessoa !== undefined) { 
+        fields.push('tipo_pessoa = ?'); 
+        params.push(tipo_pessoa); 
+      }
+
+      if (fields.length === 0) return res.status(400).json({ error: 'Nada para atualizar' });
+
+      params.push(id);
+      const sql = `UPDATE clientes SET ${fields.join(', ')} WHERE id = ?`;
+      await pool.execute(sql, params);
       res.json({ message: 'Atualizado' });
     } catch (err) { next(err); }
   }

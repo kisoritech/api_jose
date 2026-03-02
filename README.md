@@ -98,6 +98,18 @@ api/
 
 ## 🔌 API Endpoints
 
+### ⚠️ Nota Importante sobre Parâmetros
+
+- **Sempre envie um JSON válido** com `Content-Type: application/json`
+- **Campos obrigatórios não podem ser `null` ou `undefined`**:
+  - Produtos: `nome`, `preco_venda`
+  - Clientes: `nome`
+- **Campos opcionais** podem ser omitidos do request
+- **Strings** são trimadas (espaços removidos)
+- **Números** são convertidos para o tipo correto
+
+---
+
 ### Autenticação
 
 ```bash
@@ -142,9 +154,25 @@ GET /api/auth/me  (envia header Authorization: Bearer ...)
 
 ```bash
 GET    /api/clientes          # Listar
+
 GET    /api/clientes/:id      # Buscar
-POST   /api/clientes          # Criar
-PUT    /api/clientes/:id      # Atualizar
+
+# Criar cliente (nome obrigatório)
+POST   /api/clientes
+{
+  "nome": "Cliente Nome",
+  "tipo_pessoa": "fisica",    # ou "juridica"
+  "email": "cliente@example.com",
+  "telefone": "+55 11 99999-9999"
+}
+
+# Atualizar cliente (qualquer campo é opcional)
+PUT    /api/clientes/:id
+{
+  "nome": "Novo nome",
+  "email": "novo@example.com"
+}
+
 DELETE /api/clientes/:id      # Deletar
 ```
 
@@ -153,8 +181,26 @@ DELETE /api/clientes/:id      # Deletar
 ```bash
 GET    /api/produtos          # Listar
 GET    /api/produtos/:id      # Buscar
-POST   /api/produtos          # Criar
-PUT    /api/produtos/:id      # Atualizar
+
+# Criar produto (nome e preco_venda obrigatórios)
+POST   /api/produtos
+{
+  "nome": "Produto Teste",
+  "descricao": "Uma descrição",
+  "preco_venda": 99.90,
+  "estoque_atual": 50,
+  "preco": 99.90          # alternativa ao preco_venda
+  "estoque": 50           # alternativa ao estoque_atual
+}
+
+# Atualizar produto (qualquer campo é opcional)
+PUT    /api/produtos/:id
+{
+  "nome": "Novo nome",
+  "preco_venda": 149.90,
+  "estoque_atual": 100
+}
+
 DELETE /api/produtos/:id      # Deletar
 ```
 
@@ -276,6 +322,26 @@ Configure no Render em **Health Check Path**: `/health`
 ---
 
 ## ❌ Troubleshooting
+
+### Erro: "Bind parameters must not contain undefined"
+
+Você não enviou um parâmetro obrigatório ou enviou em `undefined`.
+
+**Solução**: Verifique os campos obrigatórios:
+- **Produtos**: `nome` e `preco_venda` são obrigatórios
+- **Clientes**: `nome` é obrigatório
+
+Exemplo correto:
+```bash
+curl -X POST http://localhost:3000/api/produtos \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nome": "Produto Teste",
+    "preco_venda": 99.90,
+    "estoque_atual": 50
+  }'
+```
 
 ### Erro: ECONNREFUSED (banco não conecta)
 

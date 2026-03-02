@@ -25,13 +25,26 @@ class ProdutoController {
   async criar(req, res, next) {
     try {
       const { nome, descricao } = req.body;
+      
+      // validação: nome é obrigatório
+      if (!nome || typeof nome !== 'string' || nome.trim() === '') {
+        return res.status(400).json({ error: 'Campo "nome" é obrigatório' });
+      }
+
       // accept `preco` for backwards compatibility as `preco_venda`
-      const preco_venda = req.body.preco_venda ?? req.body.preco ?? 0;
+      const preco_venda = req.body.preco_venda ?? req.body.preco;
+      
+      // validação: preco é obrigatório
+      if (preco_venda === undefined || preco_venda === null || isNaN(Number(preco_venda))) {
+        return res.status(400).json({ error: 'Campo "preco_venda" (ou "preco") é obrigatório e deve ser um número' });
+      }
+
       const estoque_atual = req.body.estoque_atual ?? req.body.estoque ?? 0;
+      const desc = descricao ?? null; // permite null para descrição
 
       const [result] = await pool.execute(
         'INSERT INTO produtos (nome, descricao, preco_venda, estoque_atual) VALUES (?, ?, ?, ?)',
-        [nome, descricao, preco_venda, estoque_atual]
+        [nome.trim(), desc, Number(preco_venda), Number(estoque_atual)]
       );
       res.status(201).json({ id: result.insertId });
     } catch (err) { next(err); }
@@ -46,10 +59,23 @@ class ProdutoController {
 
       const fields = [];
       const params = [];
-      if (nome !== undefined) { fields.push('nome = ?'); params.push(nome); }
-      if (descricao !== undefined) { fields.push('descricao = ?'); params.push(descricao); }
-      if (preco_venda !== undefined) { fields.push('preco_venda = ?'); params.push(preco_venda); }
-      if (estoque_atual !== undefined) { fields.push('estoque_atual = ?'); params.push(estoque_atual); }
+      
+      if (nome !== undefined && nome !== null) { 
+        fields.push('nome = ?'); 
+        params.push(String(nome).trim()); 
+      }
+      if (descricao !== undefined) { 
+        fields.push('descricao = ?'); 
+        params.push(descricao ?? null); 
+      }
+      if (preco_venda !== undefined && preco_venda !== null) { 
+        fields.push('preco_venda = ?'); 
+        params.push(Number(preco_venda)); 
+      }
+      if (estoque_atual !== undefined && estoque_atual !== null) { 
+        fields.push('estoque_atual = ?'); 
+        params.push(Number(estoque_atual)); 
+      }
 
       if (fields.length === 0) return res.status(400).json({ error: 'Nada para atualizar' });
 
