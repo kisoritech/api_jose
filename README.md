@@ -56,52 +56,115 @@ cp .env.example .env
 Edite o `.env` com os valores desejados:
 
 ```env
-NODE_ENV=development
+# === NODE / SERVER ===
+NODE_ENV=development     # development | production
 PORT=3000
 
-# Opção 1: Use DATABASE_URL (recomendado para Render)
-# DATABASE_URL=postgres://user:password@host:5432/sistema
+# === DATABASE (PostgreSQL) ===
+# Opção 1: Use DATABASE_URL (fornecido automaticamente pelo Render em produção)
+# Formato: postgres://user:password@host:5432/dbname
+# DATABASE_URL=postgres://user:pass@host:5432/sistema
 
 # Opção 2: Configure as variáveis individuais (para desenvolvimento local)
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=sua_senha
-DB_NAME=sistema
-DB_SSL=false
+DB_HOST=localhost        # Host do PostgreSQL
+DB_PORT=5432             # Porta PostgreSQL (padrão: 5432)
+DB_USER=postgres         # Usuário PostgreSQL
+DB_PASSWORD=sua_senha    # Senha PostgreSQL
+DB_NAME=sistema          # Nome do banco de dados
+DB_SSL=false             # true para SSL/TLS (recomendado em produção)
 
-JWT_SECRET=supersegredo
-JWT_EXPIRES_IN=8h
+# === AUTHENTICATION (JWT) ===
+JWT_SECRET=seu_segredo_super_seguro_aqui    # Chave secreta para assinar JWT
+JWT_EXPIRES_IN=8h                           # Tempo de expiração do token (ex: 8h, 24h, 7d)
 ```
 
-⚠️ **NUNCA commite `.env`** - Já está em `.gitignore`
+**⚠️ Segurança:**
+- **NUNCA commite `.env`** - Já está em `.gitignore`
+- Gere um `JWT_SECRET` forte em produção
+- Use `DB_SSL=true` em produção com PostgreSQL externo
+- Mude `NODE_ENV=production` antes de fazer deploy
 
 ---
 
-## 📁 Estrutura
+### Variáveis Opcionais
+
+```env
+# === LOGGING ===
+LOG_LEVEL=info           # debug | info | warn | error
+
+# === CORS ===
+CORS_ORIGIN=*            # Use * para desenvolvimento, restrinja em produção
+
+# === RATE LIMITING ===
+RATE_LIMIT_WINDOW_MS=900000    # Janela de tempo em ms (15 min = 900000)
+RATE_LIMIT_MAX_REQUESTS=100    # Máximo de requisições por IP
+```
+
+---
+
+## 📁 Estrutura do Projeto
 
 ```
 api/
 ├── src/
-│   ├── config/database.js
+│   ├── app.js                    # Aplicação Express com middlewares
+│   ├── server.js                 # Inicialização do servidor
+│   ├── config/
+│   │   └── database.js           # Configuração PostgreSQL
 │   ├── controllers/
-│   ├── services/
+│   │   ├── AuthController.js     # Autenticação (register, login)
+│   │   ├── ClienteController.js  # CRUD de clientes
+│   │   ├── ProdutoController.js  # CRUD de produtos
+│   │   ├── VendaController.js    # Criação de vendas
+│   │   └── LocacaoController.js  # Criação de locações
 │   ├── middlewares/
+│   │   ├── authMiddleware.js     # Validação de JWT
+│   │   ├── errorMiddleware.js    # Tratamento de erros global
+│   │   └── permissionMiddleware.js # Controle de permissões
 │   ├── routes/
-│   ├── utils/
-│   ├── app.js
-│   └── server.js
-├── sql/schema.sql
-├── .env.example
-├── .gitignore
-├── render.yaml
-├── package.json
-└── README.md
+│   │   ├── index.js              # Roteamento central
+│   │   ├── authRoutes.js         # Rotas de autenticação
+│   │   ├── clienteRoutes.js      # Rotas de clientes
+│   │   ├── produtoRoutes.js      # Rotas de produtos
+│   │   ├── vendaRoutes.js        # Rotas de vendas
+│   │   └── locacaoRoutes.js      # Rotas de locações
+│   ├── services/
+│   │   ├── VendaService.js       # Lógica de criação de vendas
+│   │   └── LocacaoService.js     # Lógica de criação de locações
+│   └── utils/
+│       ├── dbUtils.js            # Utilitários de banco de dados
+│       └── generateToken.js      # Geração de JWT
+├── sql/
+│   └── schema_postgres.sql       # Schema completo PostgreSQL
+├── .env.example                  # Variáveis de ambiente (modelo)
+├── .gitignore                    # Arquivos ignorados no git
+├── package.json                  # Dependências Node.js
+├── seedData.js                   # Script para popular BD
+├── README.md                     # Este arquivo
+├── CHANGELOG.md                  # Histórico de alterações
+├── RENDER_DEPLOY_GUIDE.md        # Guia de deploy Render
+├── TESTING_GUIDE.md              # Guia de testes
+└── PRODUCTION_CHECKLIST.md       # Checklist produção
 ```
 
 ---
 
-## 🔌 API Endpoints
+## 🔌 Endpoints da API
+
+Todos os endpoints (exceto `/health`, `/api/auth/register` e `/api/auth/login`) requerem autenticação via **Bearer Token**.
+
+### 📌 Health Check
+
+```bash
+GET /health
+```
+
+**Resposta** (sem autenticação):
+```json
+{ "status": "OK" }
+```
+
+---
 
 ### ⚠️ Nota Importante sobre Parâmetros
 
@@ -115,113 +178,280 @@ api/
 
 ---
 
-### Autenticação
+### 🔐 Autenticação
 
+#### Registrar novo usuário
 ```bash
-# Registrar
 POST /api/auth/register
+Content-Type: application/json
+
 {
-  "nome": "João",
+  "nome": "João Silva",
   "email": "joao@example.com",
   "password": "123456",
-  "perfil": "vendedor"  # admin, gerente, vendedor
+  "perfil": "vendedor"  # admin | gerente | vendedor
 }
+```
 
-# Login
+**Resposta** (201):
+```json
+{
+  "id": 1,
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "user": {
+    "id": 1,
+    "nome": "João Silva",
+    "email": "joao@example.com",
+    "perfil": "vendedor"
+  }
+}
+```
+
+#### Fazer login
+```bash
 POST /api/auth/login
+Content-Type: application/json
+
 {
   "email": "joao@example.com",
   "password": "123456"
 }
-
-> **Resposta** (token + dados):
-> ```json
-> {
->   "token": "eyJhbGciOiJIUzI1NiIs...",
->   "user": {
->     "id": 1,
->     "email": "joao@example.com",
->     "perfil": "vendedor",
->     "nome": "João"
->   }
-> }
-> ```
-
-# Consultar usuário autenticado
-GET /api/auth/me  (envia header Authorization: Bearer ...)
-
-> **Nota**: se você adicionou usuários manualmente no banco com senha em texto
-> simples, o endpoint de login irá detectar isso, rehash a senha e atualizar o
-> registro automaticamente na primeira autenticação.
 ```
 
-### Clientes
-
-```bash
-GET    /api/clientes          # Listar
-
-GET    /api/clientes/:id      # Buscar
-
-# Criar cliente (nome obrigatório)
-POST   /api/clientes
+**Resposta** (200):
+```json
 {
-  "nome": "Cliente Nome",
-  "tipo_pessoa": "fisica",    # ou "juridica"
-  "email": "cliente@example.com",
+  "token": "eyJhbGciOiJIUzI1NiIs...",
+  "user": {
+    "id": 1,
+    "nome": "João Silva",
+    "email": "joao@example.com",
+    "perfil": "vendedor"
+  }
+}
+```
+
+#### Obter dados do usuário autenticado
+```bash
+GET /api/auth/me
+Authorization: Bearer {token}
+```
+
+**Resposta** (200):
+```json
+{
+  "user": {
+    "id": 1,
+    "nome": "João Silva",
+    "email": "joao@example.com",
+    "perfil": "vendedor"
+  }
+}
+```
+
+> **Nota**: se você adicionou usuários manualmente no banco com senha em texto simples, o endpoint de login irá detectar, rehash a senha e atualizar o registro automaticamente.
+
+---
+
+### 👥 Clientes (Requer Autenticação)
+
+#### Listar todos os clientes
+```bash
+GET /api/clientes
+Authorization: Bearer {token}
+```
+
+#### Buscar cliente por ID
+```bash
+GET /api/clientes/:id
+Authorization: Bearer {token}
+```
+
+#### Criar cliente
+```bash
+POST /api/clientes
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "nome": "Empresa ABC",
+  "tipo_pessoa": "juridica",  # fisica | juridica
+  "email": "contato@abc.com",
   "telefone": "+55 11 99999-9999"
 }
-
-# Atualizar cliente (qualquer campo é opcional)
-PUT    /api/clientes/:id
-{
-  "nome": "Novo nome",
-  "email": "novo@example.com"
-}
-
-DELETE /api/clientes/:id      # Deletar
 ```
 
-### Produtos
+**Campos obrigatórios**: `nome`
 
+#### Atualizar cliente
 ```bash
-GET    /api/produtos          # Listar
-GET    /api/produtos/:id      # Buscar
+PUT /api/clientes/:id
+Authorization: Bearer {token}
+Content-Type: application/json
 
-# Criar produto (nome e preco_venda obrigatórios)
-POST   /api/produtos
 {
-  "nome": "Produto Teste",
-  "descricao": "Uma descrição",
-  "preco_venda": 99.90,
-  "estoque_atual": 50,
-  "preco": 99.90          # alternativa ao preco_venda
-  "estoque": 50           # alternativa ao estoque_atual
+  "nome": "Novo Nome",
+  "email": "novo@example.com",
+  "telefone": "+55 11 88888-8888"
 }
-
-# Atualizar produto (qualquer campo é opcional)
-PUT    /api/produtos/:id
-{
-  "nome": "Novo nome",
-  "preco_venda": 149.90,
-  "estoque_atual": 100
-}
-
-DELETE /api/produtos/:id      # Deletar
 ```
 
-### Vendas
+#### Deletar cliente
+```bash
+DELETE /api/clientes/:id
+Authorization: Bearer {token}
+```
 
+---
+
+### 📦 Produtos (Requer Autenticação)
+
+#### Listar todos os produtos
+```bash
+GET /api/produtos
+Authorization: Bearer {token}
+```
+
+#### Buscar produto por ID
+```bash
+GET /api/produtos/:id
+Authorization: Bearer {token}
+```
+
+#### Criar produto
+```bash
+POST /api/produtos
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "nome": "Notebook Dell",
+  "descricao": "Notebook profissional 16GB RAM",
+  "preco_venda": 3500.00,
+  "estoque_atual": 10
+}
+```
+
+**Campos obrigatórios**: `nome`, `preco_venda`
+
+#### Atualizar produto
+```bash
+PUT /api/produtos/:id
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "nome": "Notebook HP",
+  "preco_venda": 3200.00,
+  "estoque_atual": 15,
+  "descricao": "Novo modelo"
+}
+```
+
+#### Deletar produto
+```bash
+DELETE /api/produtos/:id
+Authorization: Bearer {token}
+```
+
+---
+
+### 💳 Vendas (Requer Autenticação)
+
+#### Criar venda
 ```bash
 POST /api/vendas
+Authorization: Bearer {token}
+Content-Type: application/json
+
 {
   "cliente_id": 1,
-  "forma_pagamento": "pix",
-  "frete_valor": 10.50,
+  "forma_pagamento": "pix",  # pix | credito | debito | boleto | cheque
+  "frete_valor": 50.00,
   "itens": [
-    { "produto_id": 1, "quantidade": 2, "valor_unitario": 50 }
+    {
+      "produto_id": 1,
+      "quantidade": 2,
+      "valor_unitario": 3500.00
+    },
+    {
+      "produto_id": 2,
+      "quantidade": 1,
+      "valor_unitario": 1200.00
+    }
   ]
 }
 ```
+
+**Resposta** (201):
+```json
+{
+  "id": 1,
+  "cliente_id": 1,
+  "valor_total": 8200.00,
+  "itens": 2,
+  "status": "concluido"
+}
+```
+
+---
+
+### 📅 Locações (Requer Autenticação)
+
+#### Criar locação
+```bash
+POST /api/locacoes
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "cliente_id": 1,
+  "forma_pagamento": "pix",
+  "data_inicio": "2026-03-05",
+  "quantidade_dias": 30,
+  "frete_valor": 50.00,
+  "itens": [
+    {
+      "produto_id": 1,
+      "quantidade": 2,
+      "valor_diario": 100.00
+    }
+  ]
+}
+```
+
+**Resposta** (201):
+```json
+{
+  "id": 1,
+  "cliente_id": 1,
+  "valor_total": 6050.00,
+  "status": "ativa"
+}
+```
+
+---
+
+## 📊 Tabela de Referência Rápida
+
+| Método | Endpoint | Autenticado | Descrição |
+|--------|----------|:----------:|-----------|
+| GET | `/health` | ❌ | Health check |
+| POST | `/api/auth/register` | ❌ | Registrar usuário |
+| POST | `/api/auth/login` | ❌ | Fazer login |
+| GET | `/api/auth/me` | ✅ | Dados do usuário |
+| GET | `/api/clientes` | ✅ | Listar clientes |
+| GET | `/api/clientes/:id` | ✅ | Buscar cliente |
+| POST | `/api/clientes` | ✅ | Criar cliente |
+| PUT | `/api/clientes/:id` | ✅ | Atualizar cliente |
+| DELETE | `/api/clientes/:id` | ✅ | Deletar cliente |
+| GET | `/api/produtos` | ✅ | Listar produtos |
+| GET | `/api/produtos/:id` | ✅ | Buscar produto |
+| POST | `/api/produtos` | ✅ | Criar produto |
+| PUT | `/api/produtos/:id` | ✅ | Atualizar produto |
+| DELETE | `/api/produtos/:id` | ✅ | Deletar produto |
+| POST | `/api/vendas` | ✅ | Criar venda |
+| POST | `/api/locacoes` | ✅ | Criar locação |
 
 ---
 
@@ -301,30 +531,180 @@ Ver [RENDER_DEPLOY_GUIDE.md](RENDER_DEPLOY_GUIDE.md) para instruções detalhada
 
 ## 🧪 Testar Localmente
 
-### Modo desenvolvimento
+### Modo Desenvolvimento
 
 ```bash
-# Terminal 1
+# Terminal 1 - inicie o servidor
 npm run dev
 
-# Terminal 2 - registrar usuário
+# Terminal 2 - execute os testes abaixo
+```
+
+### Exemplo 1: Registrar Usuário
+
+```bash
 curl -X POST http://localhost:3000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
-    "nome": "Teste",
-    "email": "teste@test.com",
+    "nome": "João Silva",
+    "email": "joao@example.com",
     "password": "123456",
     "perfil": "vendedor"
   }'
 ```
 
-### Popular com dados de teste
+**Resposta**:
+```json
+{
+  "id": 1,
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 1,
+    "nome": "João Silva",
+    "email": "joao@example.com",
+    "perfil": "vendedor"
+  }
+}
+```
+
+### Exemplo 2: Fazer Login
+
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "joao@example.com",
+    "password": "123456"
+  }'
+```
+
+### Exemplo 3: Obter Dados do Usuário
+
+```bash
+curl -X GET http://localhost:3000/api/auth/me \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+### Exemplo 4: Criar um Produto
+
+```bash
+curl -X POST http://localhost:3000/api/produtos \
+  -H "Authorization: Bearer {seu_token_aqui}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nome": "Notebook Dell XPS",
+    "descricao": "Notebook profissional 16GB RAM",
+    "preco_venda": 3500.00,
+    "estoque_atual": 10
+  }'
+```
+
+### Exemplo 5: Listar Todos os Produtos
+
+```bash
+curl -X GET http://localhost:3000/api/produtos \
+  -H "Authorization: Bearer {seu_token_aqui}"
+```
+
+### Exemplo 6: Criar um Cliente
+
+```bash
+curl -X POST http://localhost:3000/api/clientes \
+  -H "Authorization: Bearer {seu_token_aqui}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "nome": "Empresa ABC Ltda",
+    "tipo_pessoa": "juridica",
+    "email": "contato@abc.com",
+    "telefone": "+55 11 99999-9999"
+  }'
+```
+
+### Exemplo 7: Criar uma Venda
+
+```bash
+curl -X POST http://localhost:3000/api/vendas \
+  -H "Authorization: Bearer {seu_token_aqui}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cliente_id": 1,
+    "forma_pagamento": "pix",
+    "frete_valor": 50.00,
+    "itens": [
+      {
+        "produto_id": 1,
+        "quantidade": 2,
+        "valor_unitario": 3500.00
+      }
+    ]
+  }'
+```
+
+### Usar com Postman / Insomnia
+
+**Postman:**
+1. Importe as variáveis de ambiente:
+   - Crie um Environment com as variáveis: `baseUrl`, `token`
+   - `baseUrl` = `http://localhost:3000`
+2. Após login, copie o `token` da resposta
+3. Configure a variável `token` em Environment
+4. Use `{{baseUrl}}/api/...` e `Bearer {{token}}` nos headers
+
+**Insomnia:**
+1. Configure base URL: `http://localhost:3000`
+2. Use `_` (underscore) para variáveis: `{{ _.baseUrl }}`
+3. Copie o token após login
+4. Use em Auth → Bearer Token
+
+---
+
+### Exemplos com Postman
+
+1. **Importe o `.env`** como variáveis de ambiente
+2. **Faça login** e salve o token:
+   - Response → Test → `pm.environment.set("token", pm.response.json().token)`
+3. **Use `{{token}}`** nos headers de Authorization
+
+---
+
+## ✔️ Checklist Pronto para Usar
+
+### Desenvolvimento Local
+- [ ] Node.js 18+ instalado
+- [ ] PostgreSQL rodando
+- [ ] `.env` configurado com credenciais locais
+- [ ] `npm install` executado
+- [ ] `npm run dev` funciona sem erros
+- [ ] `/health` retorna 200 OK
+
+### Antes de Deploy
+- [ ] Testes realizados com sucesso localmente
+- [ ] `npm run seed` popula dados de teste
+- [ ] Todos os endpoints testados com token válido
+- [ ] Variáveis sensíveis foram para `.env`
+- [ ] `.env` não foi commitado (verificar `.gitignore`)
+- [ ] `NODE_ENV=production` antes de fazer build
+
+### Pós-Deploy em Produção
+- [ ] Health check (`/health`) retorna 200
+- [ ] Registro e login funcionam
+- [ ] HTTPS está ativo (certificado SSL)
+- [ ] Rate limiting está ativo (protege contra abuso)
+- [ ] Logs estão sendo registrados
+- [ ] Backups do banco configurados
+
+### Popular com Dados de Teste
 
 ```bash
 npm run seed
 ```
 
-Isso cria usuários, clientes, produtos e vendas de exemplo para facilitar testes.
+Isso cria automaticamente:
+- 4 usuários de teste (admin, gerente, 2 vendedores)
+- 3 clientes de exemplo
+- 4 produtos de exemplo
+- 1 venda com 2 itens
+- 1 locação de teste
 
 ---
 
@@ -343,13 +723,24 @@ Veja `src/utils/dbUtils.js` para detalhes.
 
 ## 🔒 Segurança em Produção
 
-- ✅ **Helmet** - headers de segurança
-- ✅ **Rate Limiting** - 100 req/15min por IP
-- ✅ **CORS** - controle de origem
-- ✅ **JWT** - autenticação stateless
-- ✅ **bcrypt** - hash de senhas (com 8 rounds)
-- ✅ **SSL/TLS** - criptografia de transporte
-- ✅ **Triggers & Functions** - lógica de negócio no banco
+A API implementa múltiplas camadas de segurança:
+
+- ✅ **Helmet.js** - Headers de segurança HTTP
+- ✅ **CORS** - Controle de requisições de origem cruzada
+- ✅ **Rate Limiting** - 100 requisições por IP a cada 15 minutos
+- ✅ **JWT (JSON Web Tokens)** - Autenticação stateless com expiração
+- ✅ **bcryptjs** - Hash seguro de senhas (10 rounds de salt)
+- ✅ **SSL/TLS** - Criptografia de transporte em produção
+- ✅ **Database Triggers** - Validações no banco de dados
+- ✅ **Input Validation** - Sanitização de entrada em todos os endpoints
+- ✅ **Environment Variables** - Não versionam dados sensíveis (`.env` no `.gitignore`)
+
+**Boas Práticas Implementadas:**
+- Senha nunca é retornada nas respostas
+- Tokens com expiração automática (padrão: 8 horas)
+- Detecção e rehash automático de senhas hashadas incorretamente
+- Logging de requisições via Morgan
+- Isolamento de dados por usuário autenticado
 
 ---
 
@@ -390,11 +781,11 @@ Configure no Render em **Settings** → **Health Check** → **Path**: `/health`
 
 ---
 
-## ❌ Troubleshooting
+## ❌ Troubleshooting - Problemas Comuns e Soluções
 
-### Erro: "Bind parameters must not contain undefined"
+### 1️⃣ Erro: "Bind parameters must not contain undefined"
 
-Você não enviou um parâmetro obrigatório ou enviou em `undefined`.
+**Causa**: Um parâmetro obrigatório não foi enviado ou é `undefined`.
 
 **Solução**: Verifique os campos obrigatórios:
 - **Produtos**: `nome` e `preco_venda` são obrigatórios
@@ -412,31 +803,169 @@ curl -X POST http://localhost:3000/api/produtos \
   }'
 ```
 
-### Erro: ECONNREFUSED (banco não conecta)
+---
+
+### 2️⃣ Erro: ECONNREFUSED (banco não conecta)
+
+**Causa**: A API não consegue conectar ao PostgreSQL.
+
+**Solução**: Verifique:
+1. PostgreSQL está rodando?
+2. `DATABASE_URL` está formatada corretamente? (postgres://user:pass@host:port/db)
+3. Ou `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` estão corretos?
+4. Firewall permite conexão na porta 5432?
+5. `DB_SSL=true` se conectar via SSL/TLS?
 
 ```bash
-# Verifique:
-1. DATABASE_URL está formatada corretamente (postgres://user:pass@host:port/db)?
-2. Ou DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME estão corretos?
-3. Firewall permite acesso à porta 5432?
-4. DB_SSL=true se usar SSL/TLS?
-5. PostgreSQL está rodando?
+# Teste conexão localmente
+psql -h localhost -U postgres -d sistema
+
+# Se usar DATABASE_URL
+psql "your_database_url_here"
 ```
 
-### Erro: "Port is already in use"
+---
 
+### 3️⃣ Erro: "Port is already in use"
+
+**Causa**: Porta 3000 já está em uso.
+
+**Solução**:
 ```bash
 # Windows
 netstat -ano | findstr :3000
-taskkill /PID <PID> /F
+taskkill /PID 12345 /F
 
 # Linux/Mac
-lsof -i :3000 && kill -9 <PID>
+lsof -i :3000
+kill -9 <PID>
+
+# Ou use outra porta
+PORT=3001 npm run dev
 ```
 
-### Erro: "JWT malformed"
+---
 
-Faça login novamente para gerar novo token.
+### 4️⃣ Erro: "JWT malformed" ou "Invalid token"
+
+**Causa**: Token JWT expirado, inválido ou mal formatado.
+
+**Solução**:
+1. Faça login novamente para gerar novo token
+2. Certifique-se que está enviando o token no header: `Authorization: Bearer {token}`
+3. Não inclua "Bearer " duas vezes
+
+Exemplo correto:
+```bash
+curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." http://localhost:3000/api/auth/me
+```
+
+---
+
+### 5️⃣ Erro: "401 Unauthorized"
+
+**Causa**: Autenticação falhou ou token ausente.
+
+**Solução**:
+1. Verifique se o endpoint requer autenticação (consulte tabela de endpoints)
+2. Envie o token no header: `Authorization: Bearer {seu_token}`
+3. Verifique se o token não expirou
+4. Faça login novamente
+
+---
+
+### 6️⃣ Erro: "Too many requests" (Rate Limiting)
+
+**Causa**: Excedeu o limite de 100 requisições por 15 minutos.
+
+**Solução**:
+1. Aguarde 15 minutos
+2. Ou configure `RATE_LIMIT_MAX_REQUESTS` em `.env`
+3. Em desenvolvimento, desative rate limiting:
+```javascript
+// Em src/app.js, comentar a linha:
+// app.use(limiter);
+```
+
+---
+
+### 7️⃣ Erro: "Content-Type application/json required"
+
+**Causa**: Não enviou `Content-Type: application/json` no header.
+
+**Solução**: Adicione o header em todas as requisições POST/PUT:
+```bash
+curl -X POST http://localhost:3000/api/clientes \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {token}" \
+  -d '{"nome": "Cliente"}'
+```
+
+---
+
+### 8️⃣ Erro: "FATAL: database 'sistema' does not exist"
+
+**Causa**: O banco de dados não foi criado.
+
+**Solução**:
+```bash
+# Conecte ao PostgreSQL como superuser
+psql -U postgres -h localhost
+
+# Crie o banco
+CREATE DATABASE sistema;
+
+# Saia e execute o schema
+psql -U postgres -d sistema -f sql/schema_postgres.sql
+```
+
+---
+
+### 9️⃣ Erro em Produção: "DATABASE_URL environment variable not found"
+
+**Causa**: Render não forneceu `DATABASE_URL` automaticamente.
+
+**Solução**:
+1. Crie um PostgreSQL Database no Render primeiro
+2. Conecte ao seu Web Service na aba "Environment"
+3. Render fornecerá `DATABASE_URL` automaticamente
+
+---
+
+### 🔟 Erro: "Client has already been closed"
+
+**Causa**: Problema com transação ou conexão ao banco.
+
+**Solução**:
+1. Verifique se `pool.getConnection()` foi chamado corretamente
+2. Certifique-se de fazer `release()` ou `commit()` / `rollback()`
+3. Reinicie a API: `npm run dev`
+
+---
+
+## 🔍 Debug e Logs
+
+### Ver logs em tempo real
+```bash
+npm run dev
+```
+
+Você verá logs como:
+```
+POST /api/auth/login 200 45.234 ms
+GET /api/produtos 200 12.123 ms
+```
+
+### Ativar logging verbose
+```javascript
+// Em src/app.js
+app.use(morgan('verbose'));
+```
+
+### Testar conectividade
+```bash
+curl http://localhost:3000/health
+# Resposta: { "status": "OK" }
 
 ---
 
@@ -449,4 +978,4 @@ Faça login novamente para gerar novo token.
 
 ---
 
-**Versão**: 1.0.0 | **Data**: 1 de março de 2026
+**Versão**: 1.0.0 | **Data**: 4 de março de 2026 | **Status**: ✅ Pronto para Produção
