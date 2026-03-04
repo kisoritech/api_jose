@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
+const path = require('path');
 
 const routes = require('./routes');
 const errorMiddleware = require('./middlewares/errorMiddleware');
@@ -32,8 +33,16 @@ app.use(cors());
 // Body parser
 app.use(express.json());
 
+// Servir arquivos estáticos para facilitar testes via browser
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
 // Rotas
 app.use('/api', routes);
+
+// rota raiz para desenvolvimento: serve index.html se existir
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+});
 
 // Health check (útil para Render)
 app.get('/health', (req, res) => {

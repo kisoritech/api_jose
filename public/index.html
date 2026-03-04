@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>API Test UI - Auth & Requests</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;margin:20px;color:#222}
+    h1{font-size:1.2rem}
+    label{display:block;margin-top:8px}
+    input,select,textarea{width:100%;padding:8px;margin-top:4px;border:1px solid #ccc;border-radius:4px}
+    .row{display:flex;gap:10px}
+    .col{flex:1}
+    button{margin-top:10px;padding:8px 12px}
+    .token-box{background:#f5f5f5;padding:8px;border-radius:4px;word-break:break-all}
+    .section{border:1px solid #eee;padding:12px;border-radius:6px;margin-bottom:12px}
+    small{color:#666}
+  </style>
+</head>
+<body>
+  <h1>API Test UI — Login / Requests</h1>
+
+  <div class="section">
+    <strong>Configurações</strong>
+    <label>Base URL
+      <input id="baseUrl" placeholder="http://localhost:3000" value="http://localhost:3000" />
+    </label>
+  </div>
+
+  <div class="section">
+    <strong>Autenticação</strong>
+    <div class="row">
+      <div class="col">
+        <label>Email
+          <input id="email" placeholder="joao@example.com" />
+        </label>
+      </div>
+      <div class="col">
+        <label>Senha
+          <input id="password" type="password" placeholder="123456" />
+        </label>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col">
+        <button id="btnLogin">Login</button>
+      </div>
+      <div class="col">
+        <button id="btnRegister">Registrar (teste)</button>
+      </div>
+    </div>
+
+    <label>Token
+      <div class="token-box" id="tokenDisplay">Nenhum token</div>
+    </label>
+    <div class="row">
+      <button id="btnCopy">Copiar token</button>
+      <button id="btnClear">Limpar token</button>
+    </div>
+    <small>Dica: após o login, o token será salvo em <em>localStorage</em> e usado automaticamente nas requisições.</small>
+  </div>
+
+  <div class="section">
+    <strong>Construtor de Requisições</strong>
+    <div class="row">
+      <div style="width:140px">
+        <label>Método
+          <select id="method">
+            <option>GET</option>
+            <option>POST</option>
+            <option>PUT</option>
+            <option>DELETE</option>
+          </select>
+        </label>
+      </div>
+      <div class="col">
+        <label>Endpoint (path)
+          <input id="endpoint" placeholder="/api/produtos" />
+        </label>
+      </div>
+    </div>
+
+    <label>Body (JSON)
+      <textarea id="body" rows="6" placeholder='{"nome":"Produto X","preco_venda":100.0}'></textarea>
+    </label>
+
+    <div class="row">
+      <button id="btnSend">Enviar</button>
+      <button id="btnSendNoAuth">Enviar (sem token)</button>
+    </div>
+
+    <label>Resposta</label>
+    <pre id="response" style="background:#fafafa;padding:8px;border:1px solid #eee;min-height:120px;white-space:pre-wrap"></pre>
+  </div>
+
+  <script>
+    const baseUrlInput = document.getElementById('baseUrl');
+    const tokenKey = 'api_test_ui_token';
+
+    function setToken(t){
+      if(t){
+        localStorage.setItem(tokenKey, t);
+        document.getElementById('tokenDisplay').textContent = t;
+      } else {
+        localStorage.removeItem(tokenKey);
+        document.getElementById('tokenDisplay').textContent = 'Nenhum token';
+      }
+    }
+
+    function getToken(){
+      return localStorage.getItem(tokenKey);
+    }
+
+    // Inicializa token se existir
+    if(getToken()) setToken(getToken());
+
+    document.getElementById('btnCopy').addEventListener('click', async ()=>{
+      const t = getToken();
+      if(!t) return alert('Nenhum token para copiar');
+      await navigator.clipboard.writeText(t);
+      alert('Token copiado para a área de transferência');
+    });
+
+    document.getElementById('btnClear').addEventListener('click', ()=> setToken(null));
+
+    async function request(path, opts={}){
+      const url = (baseUrlInput.value||'').replace(/\/$/, '') + path;
+      const headers = opts.headers || {};
+      if(opts.auth !== false){
+        const t = getToken();
+        if(t) headers['Authorization'] = 'Bearer '+t;
+      }
+      if(opts.body && typeof opts.body === 'object'){
+        headers['Content-Type'] = 'application/json';
+      }
+      try{
+        const res = await fetch(url, {method: opts.method||'GET', headers, body: opts.body?JSON.stringify(opts.body):undefined});
+        const text = await res.text();
+        let parsed = text;
+        try{ parsed = JSON.parse(text); }
+        catch(e){}
+        return {status: res.status, ok: res.ok, body: parsed};
+      }catch(err){
+        return {error: err.message};
+      }
+    }
+
+    document.getElementById('btnLogin').addEventListener('click', async ()=>{
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      if(!email || !password) return alert('Preencha email e senha');
+      const r = await request('/api/auth/login', {method:'POST', body:{email,password}, auth:false});
+      if(r.error){document.getElementById('response').textContent = r.error; return}
+      if(r.status===200 && r.body && r.body.token){
+        setToken(r.body.token);
+        document.getElementById('response').textContent = JSON.stringify(r.body, null, 2);
+      } else {
+        document.getElementById('response').textContent = JSON.stringify(r, null, 2);
+      }
+    });
+
+    document.getElementById('btnRegister').addEventListener('click', async ()=>{
+      const nome = prompt('Nome do usuário teste (ex: João Silva)') || 'Teste';
+      const email = prompt('Email (ex: teste@example.com)') || `teste+${Date.now()}@example.com`;
+      const password = prompt('Senha (ex: 123456)') || '123456';
+      const perfil = prompt('Perfil (admin|gerente|vendedor)', 'vendedor') || 'vendedor';
+      const r = await request('/api/auth/register', {method:'POST', body:{nome,email,password,perfil}, auth:false});
+      document.getElementById('response').textContent = JSON.stringify(r, null, 2);
+      if(r.status===201 && r.body && r.body.token){ setToken(r.body.token); }
+    });
+
+    document.getElementById('btnSend').addEventListener('click', async ()=>{
+      const method = document.getElementById('method').value;
+      const endpoint = document.getElementById('endpoint').value;
+      let body = document.getElementById('body').value.trim();
+      let parsedBody = null;
+      if(body) try{ parsedBody = JSON.parse(body); } catch(e){ return alert('Body inválido: JSON mal formado') }
+      const r = await request(endpoint, {method, body: parsedBody, auth:true});
+      document.getElementById('response').textContent = JSON.stringify(r, null, 2);
+    });
+
+    document.getElementById('btnSendNoAuth').addEventListener('click', async ()=>{
+      const method = document.getElementById('method').value;
+      const endpoint = document.getElementById('endpoint').value;
+      let body = document.getElementById('body').value.trim();
+      let parsedBody = null;
+      if(body) try{ parsedBody = JSON.parse(body); } catch(e){ return alert('Body inválido: JSON mal formado') }
+      const r = await request(endpoint, {method, body: parsedBody, auth:false});
+      document.getElementById('response').textContent = JSON.stringify(r, null, 2);
+    });
+
+  </script>
+</body>
+</html>

@@ -656,6 +656,28 @@ curl -X POST http://localhost:3000/api/vendas \
 3. Copie o token após login
 4. Use em Auth → Bearer Token
 
+### UI de Teste no Navegador
+
+Uma página de teste está disponível em `public/index.html` e também no caminho raiz `/` quando o servidor está rodando. Ela facilita operações comuns sem usar `curl` ou Postman:
+
+- Acesse: `http://localhost:3000` (desenvolvimento)
+- Funcionalidades:
+  - Login e registro de usuário (salva token em `localStorage`)
+  - Copiar token para a área de transferência
+  - Construir e enviar requisições (GET/POST/PUT/DELETE) com ou sem o header `Authorization`
+  - Painel com a resposta em JSON
+
+Uso rápido:
+
+1. Inicie a aplicação:
+```bash
+npm run dev
+```
+2. Abra `http://localhost:3000` no navegador
+3. Faça login ou registre um usuário; copie o token e use nos seus testes
+
+Observação: a UI destina-se a testes e desenvolvimento; não a exponha em produção sem proteção adicional.
+
 ---
 
 ### Exemplos com Postman
