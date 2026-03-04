@@ -167,25 +167,18 @@ git push -u origin main
 
 ### 2️⃣ **Crie banco em produção**
 - **Recomendado**: Railway ([railway.app](https://railway.app))
-- **Alternativa**: PlanetScale ([planetscale.com](https://planetscale.com))
-
-Copie as credenciais do banco.
-
 ### 3️⃣ **Deploy no Render**
 1. Acesse [render.com](https://render.com)
 2. New → Web Service
 3. Conecte GitHub
-4. Adicione variáveis:
+4. Render fornecerá DATABASE_URL automaticamente
+5. Adicione variáveis:
    ```
    NODE_ENV=production
-   DB_HOST=banco.mysql.railway.app
-   DB_USER=seu_usuario
-   DB_PASSWORD=sua_senha
-   DB_NAME=sistema
-   DB_SSL=true
    JWT_SECRET=secret_super_seguro
+   JWT_EXPIRES_IN=8h
    ```
-5. Deploy!
+6. Deploy!
 
 ### 4️⃣ **Verifique a saúde**
 ```bash
@@ -213,7 +206,7 @@ curl https://sua-api.render.com/health
 
 ## 📊 Performance
 
-- Connection pooling MySQL (10 conexões)
+- Connection pooling PostgreSQL (10 conexões)
 - Transações para operações críticas
 - Rate limiting contra abuso
 - Keep-alive para banco
@@ -237,7 +230,7 @@ Apenas **complementado** com segurança e produção!
 - [Render Docs](https://render.com/docs)
 - [Express + Helmet](https://helmetjs.github.io/)
 - [Rate Limiting](https://github.com/nfriedly/express-rate-limit)
-- [MySQL SSL](https://github.com/sidorares/node-mysql2)
+- [PostgreSQL SSL](https://www.postgresql.org/docs/current/ssl-tcp.html)
 
 ---
 

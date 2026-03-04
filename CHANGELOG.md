@@ -1,24 +1,18 @@
-# 📦 Resumo da Atualização - Suporte a PostgreSQL
+# 📦 Changelog
 
-## ✅ O que foi alterado
+## 🔄 Versão Atual - PostgreSQL Only
 
-### 1. **Suporte a PostgreSQL**
+API agora usa **PostgreSQL** como banco de dados exclusivamente.
 
-A API agora funciona com **MySQL** ou **PostgreSQL**:
+### Mudanças principais:
 
-```env
-DB_TYPE=mysql   # ou postgres
-```
-
-#### Arquivos criados/modificados:
-
-- **`src/config/database.js`** - Camada de abstração que detecta `DB_TYPE` e:
-  - Converte placeholders `?` → `$1`, `$2`, ... (PostgreSQL)
+- **`src/config/database.js`** - Configuração PostgreSQL simplificada:
+  - Converte placeholders `?` → `$1`, `$2`, ... (formato PostgreSQL)
   - Adiciona `RETURNING id` aos INSERTs automaticamente
-  - Expõe mesma interface para ambos os drivers
+  - Interface padrão para pool e transações
 
-- **`src/utils/dbUtils.js`** (novo) - Utilitários para extração de IDs inseridos genericamente
-  - `getInsertedId(result)` - funciona com `result.insertId` (MySQL) e `result.rows[0].id` (PostgreSQL)
+- **`src/utils/dbUtils.js`** - Utilitários para extração de IDs inseridos:
+  - `getInsertedId(result)` - normaliza resultado do INSERT
 
 #### Controladores/Serviços atualizados:
 
@@ -28,7 +22,7 @@ DB_TYPE=mysql   # ou postgres
 - `src/services/VendaService.js`
 - `src/services/LocacaoService.js`
 
-Todos agora usam `getInsertedId()` para compatibilidade total.
+Todos usam `getInsertedId()` para normalizar IDs inseridos.
 
 ---
 
@@ -56,23 +50,22 @@ Todos agora usam `getInsertedId()` para compatibilidade total.
 ### 3. **Arquivo de Ambiente Melhorado**
 
 - **`.env.example`** - Agora documentado com:
-  - Seções claras (NODE, DATABASE, AUTH, etc.)
-  - Comentários explicando MySQL vs PostgreSQL
-  - Exemplo de `DATABASE_URL` para PostgreSQL
+  - Configuração simplificada para PostgreSQL
+  - Duas opções de conexão (DATABASE_URL ou variáveis individuais)
+  - Comentários claros
 
 ---
 
 ### 4. **Package.json Atualizado**
 
-- Adicionado `"pg": "^8.11.3"` como dependência para PostgreSQL
-- Script novo: `npm run seed` para popular banco com dados de teste
-- Descrição atualizada: "Express + MySQL/PostgreSQL"
+- Dependência: `"pg": "^8.11.3"` para PostgreSQL
+- Script: `npm run seed` para popular banco com dados de teste
 
 ---
 
 ### 5. **Script de Seed (Dados de Teste)**
 
-- **`seedData.js`** (novo) - Popula banco com:
+- **`seedData.js`** - Popula banco com dados de exemplo:
   - 4 usuários de teste (admin, gerente, 2 vendedores)
   - 3 clientes de exemplo
   - 4 produtos (notebooks, mouse, teclado, projetor)
@@ -83,29 +76,25 @@ Todos agora usam `getInsertedId()` para compatibilidade total.
 npm run seed
 ```
 
-Usa `getInsertedId()` para compatibilidade com MySQL e PostgreSQL.
-
 ---
 
 ### 6. **Guia de Deploy no Render**
 
-- **`RENDER_DEPLOY_GUIDE.md`** (novo) - Instruções completas:
-  - ✅ Deploy com PostgreSQL (recomendado)
-  - ✅ Deploy com MySQL (via Railway)
-  - ✅ Como executar schema
-  - ✅ Variáveis de ambiente por opção
-  - ✅ Troubleshooting
-  - ✅ Migração de dados entre bancos
+- **`RENDER_DEPLOY_GUIDE.md`** - Instruções completas para:
+  - Deploy com PostgreSQL no Render
+  - Como executar schema
+  - Variáveis de ambiente
+  - Health check
+  - Troubleshooting
 
 ---
 
 ### 7. **README Atualizado**
 
-- Título agora menciona "Express + MySQL / PostgreSQL"
-- Seção de install com opções MySQL e PostgreSQL
-- Documentação de `DB_TYPE` nas variáveis de ambiente
+- Documentação clara para PostgreSQL
+- Instruções de instalação local
 - Explicação da camada de abstração
-- Deploy no Render com duas opções (MySQL vs PostgreSQL)
+- Deploy no Render simplificado
 - Views e funções documentadas
 - Troubleshooting expandido
 
@@ -113,49 +102,34 @@ Usa `getInsertedId()` para compatibilidade com MySQL e PostgreSQL.
 
 ## 🚀 Como Usar
 
-### Local com MySQL
-
-```bash
-# .env
-DB_TYPE=mysql
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=1234
-DB_NAME=sistema
-
-npm install
-npm run dev
-npm run seed  # (opcional)
-```
-
 ### Local com PostgreSQL
 
 ```bash
 # .env
-DB_TYPE=postgres
 DB_HOST=localhost
+DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=sua_senha
 DB_NAME=sistema
+DB_SSL=false
 
 npm install
 npm run dev
 npm run seed  # (opcional)
 ```
 
-### Deploy no Render com PostgreSQL
+### Deploy no Render (PostgreSQL)
 
 1. Crie um **PostgreSQL Database** no Render
 2. Crie um **Web Service** conectado ao GitHub
-3. Environment variables:
+3. Render fornece `DATABASE_URL` automaticamente
+4. Environment variables:
 ```
 NODE_ENV=production
-DB_TYPE=postgres
-DB_SSL=true
 JWT_SECRET=seu_segredo_aqui
 JWT_EXPIRES_IN=8h
 ```
-4. Após deploy, execute o schema via Render Shell:
+5. Após deploy, execute o schema via Render Shell:
 ```bash
 psql $DATABASE_URL -f sql/schema_postgres.sql
 ```
@@ -164,34 +138,12 @@ Ver [RENDER_DEPLOY_GUIDE.md](RENDER_DEPLOY_GUIDE.md) para detalhes completos.
 
 ---
 
-## 📊 Compatibilidade
+## 🔄 Estrutura de Banco de Dados
 
-| Feature | MySQL | PostgreSQL |
-|---------|-------|----------|
-| Conexão | `mysql2/promise` | `pg` |
-| Placeholders | `?` | `$1, $2, ...` → convertidos automaticamente |
-| Insert ID | `result.insertId` | `result.rows[0].id` → normalizado com `getInsertedId()` |
-| Transactions | ✅ | ✅ |
-| Views | ✅ | ✅ |
-| Triggers | ✅ | ✅ (plpgsql) |
-| Functions | ❌ (SQL puro) | ✅ (plpgsql) |
-| Enums | ✅ (string) | ✅ (tipos nativos) |
-
----
-
-## 🔄 Migrando código existente
-
-Se você tem código Node.js com queries diretas `?`:
-
-```javascript
-// Antes (MySQL only):
-const [result] = await pool.execute('INSERT INTO usuarios ... VALUES (?, ?, ?)', [nome, email, hash]);
-const userId = result.insertId;
-
-// Depois (compatível com ambos):
-const [result] = await pool.execute('INSERT INTO usuarios ... VALUES (?, ?, ?)', [nome, email, hash]);
-const userId = getInsertedId(result);  // funciona em MySQL e PostgreSQL!
-```
+A API utiliza **PostgreSQL** com:
+- Conversão automática de placeholders `?` para `$1/$2`
+- `RETURNING id` nos INSERTs
+- Suporte completo a transações e views
 
 ---
 
@@ -201,16 +153,18 @@ const userId = getInsertedId(result);  // funciona em MySQL e PostgreSQL!
 npm install
 ```
 
-Isso instala:
-- `mysql2@^3.18.2` (se usar MySQL)
-- `pg@^8.11.3` (se usar PostgreSQL)
-- Outras dependências existentes (express, bcryptjs, jwt, etc.)
+Dependências principais:
+- `pg@^8.11.3` - PostgreSQL
+- `express` - Framework web
+- `bcryptjs` - Hash de senhas
+- `jsonwebtoken` - Autenticação JWT
+- Outras conforme necessário
 
 ---
 
 ## 🧪 Testes
 
-Todos os endpoints funcionam **idêntico** em MySQL e PostgreSQL. Teste localmente:
+Todos os endpoints funcionam com PostgreSQL. Teste localmente:
 
 ```bash
 # Terminal 1
@@ -246,11 +200,11 @@ curl -X POST http://localhost:3000/api/auth/register \
 
 ## ⚙️ Próximos passos recomendados
 
-1. **Testar localmente** com ambos os bancos (MySQL e PostgreSQL)
+1. **Testar localmente** com PostgreSQL
 2. **Executar `npm run seed`** para popular dados de teste
 3. **Deploy no Render** seguindo [RENDER_DEPLOY_GUIDE.md](RENDER_DEPLOY_GUIDE.md)
 4. **(Opcional) Integrar CI/CD** para rodar migrations automaticamente
 
 ---
 
-**Versão**: 1.0.0 | **Data**: 3 de março de 2026
+**Versão**: 1.0.0 | **Data**: 4 de março de 2026

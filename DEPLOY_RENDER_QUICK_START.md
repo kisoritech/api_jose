@@ -8,7 +8,6 @@
 
 - [x] Conta GitHub
 - [x] Conta Render (grátis em [render.com](https://render.com))
-- [x] Banco MySQL pronto (Railway ou outro)
 
 ---
 
@@ -59,25 +58,15 @@ Enquanto faz build, adicione variáveis:
 
 No painel → **Environment**
 
-Adicione:
+Adicione (Render fornecerá DATABASE_URL automaticamente):
 
 ```
 NODE_ENV=production
 PORT=10000
 
-DB_HOST=seu-host.mysql.railway.app
-DB_USER=seu_usuario
-DB_PASSWORD=sua_senha
-DB_NAME=sistema
-DB_SSL=true
-
 JWT_SECRET=coloque_um_secret_muito_seguro_aqui
 JWT_EXPIRES_IN=8h
 ```
-
-> Onde encontrar essas credenciais?
-> - **Railway**: Railway Dashboard → MySQL → Variables
-> - **PlanetScale**: PlanetScale Dashboard → Connect → MySQL
 
 ---
 
@@ -183,8 +172,6 @@ Depois que estiver rodando:
 ## 📚 Docs
 
 - [Render Web Service Docs](https://render.com/docs/deploy-node-express-app)
-- [Railway MySQL Setup](https://railway.app)
-- [PlanetScale Docs](https://planetscale.com/docs)
 
 ---
 

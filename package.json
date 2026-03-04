@@ -1,7 +1,7 @@
 {
   "name": "api",
   "version": "1.0.0",
-  "description": "API Node.js profissional com Express + MySQL/PostgreSQL para venda, locação e gestão de estoque",
+  "description": "API Node.js profissional com Express + PostgreSQL para venda, locação e gestão de estoque",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -11,7 +11,7 @@
   "keywords": [
     "api",
     "express",
-    "mysql",
+    "postgresql",
     "nodejs"
   ],
   "author": "Seu Nome",
@@ -29,7 +29,6 @@
     "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.0",
-    "mysql2": "^3.18.2",
     "pg": "^8.11.3"
   },
   "devDependencies": {

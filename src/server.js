@@ -3,7 +3,6 @@ const app = require('./app');
 
 const PORT = process.env.PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const DB_TYPE = (process.env.DB_TYPE || 'mysql').toLowerCase();
 
 // Cores para console
 const colors = {
@@ -26,7 +25,7 @@ function printStartupScreen() {
     ╔═══════════════════════════════════════════════════════════════╗
     ║                                                               ║
     ║          🚀 API NODE.JS - GESTÃO DE ESTOQUE & VENDAS         ║
-    ║                    Express + ${DB_TYPE.toUpperCase()}                           ║
+    ║                   Express + PostgreSQL                       ║
     ║                                                               ║
     ╚═══════════════════════════════════════════════════════════════╝
   `;
@@ -42,7 +41,7 @@ function printStartupScreen() {
     },
     {
       label: '🗄️  Banco de Dados',
-      value: DB_TYPE.toUpperCase(),
+      value: 'POSTGRESQL',
       color: colors.blue,
     },
     {

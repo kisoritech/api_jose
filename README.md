@@ -1,4 +1,4 @@
-# 🚀 API Node.js | Express + MySQL / PostgreSQL
+# 🚀 API Node.js | Express + PostgreSQL
 
 Aplicação profissional pronta para produção com autenticação JWT, gestão de vendas, locações e estoque.
 
@@ -18,7 +18,7 @@ Aplicação profissional pronta para produção com autenticação JWT, gestão 
 
 - Node.js 18.x
 - npm ou yarn
-- MySQL 5.7+
+- PostgreSQL 12+
 
 ### Passos
 
@@ -33,16 +33,7 @@ npm install
 # 3. Crie o arquivo .env
 cp .env.example .env
 
-# 4. Configure o banco de dados
-# Durante o desenvolvimento você pode usar MySQL ou PostgreSQL; o driver é
-# controlado pela variável DB_TYPE do `.env` (mysql ou postgres). Para
-# PostgreSQL há um segundo arquivo de esquema com todas as enums e triggers
-# adaptadas ao dialeto.
-
-# - MySQL
-mysql -u seu_usuario -p seu_banco < sql/schema.sql
-
-# - PostgreSQL
+# 4. Configure o banco de dados PostgreSQL
 psql -U seu_usuario -d seu_banco -f sql/schema_postgres.sql
 
 # 5. Inicie em desenvolvimento
@@ -68,16 +59,16 @@ Edite o `.env` com os valores desejados:
 NODE_ENV=development
 PORT=3000
 
-# if you want to use Postgres set DB_TYPE=postgres and either
-# supply individual connection vars or use DATABASE_URL provided by Render
-DB_TYPE=mysql          # mysql or postgres
+# Opção 1: Use DATABASE_URL (recomendado para Render)
+# DATABASE_URL=postgres://user:password@host:5432/sistema
 
+# Opção 2: Configure as variáveis individuais (para desenvolvimento local)
 DB_HOST=localhost
-DB_USER=root
+DB_PORT=5432
+DB_USER=postgres
 DB_PASSWORD=sua_senha
 DB_NAME=sistema
 DB_SSL=false
-#DATABASE_URL=postgres://user:pass@host:5432/sistema
 
 JWT_SECRET=supersegredo
 JWT_EXPIRES_IN=8h
@@ -265,30 +256,28 @@ git push -u origin main
 
 ### Passo 4: Environment Variables
 
-**Opção A: MySQL (e.g., Railway)**
+Render fornece `DATABASE_URL` automaticamente para PostgreSQL. Configure no dashboard:
 
 ```
 NODE_ENV=production
-DB_TYPE=mysql
 
-DB_HOST=seu_host.mysql.railway.app
-DB_USER=seu_usuario
-DB_PASSWORD=sua_senha
-DB_NAME=sistema
-DB_SSL=true
+# Render fornece DATABASE_URL automaticamente, não precisa configurar DB_HOST, DB_USER, etc.
 
 JWT_SECRET=secret_super_seguro
 JWT_EXPIRES_IN=8h
 ```
 
-**Opção B: PostgreSQL (Render fornece DATABASE_URL automaticamente)**
+Se preferir configurar as variáveis individuais:
 
 ```
 NODE_ENV=production
-DB_TYPE=postgres
 
-# Render já exporta DATABASE_URL automaticamente para PostgreSQL
-# (não precisa configurar DB_HOST, DB_USER, etc. nesse caso)
+DB_HOST=seu_host.postgres.render.com
+DB_PORT=5432
+DB_USER=seu_usuario
+DB_PASSWORD=sua_senha
+DB_NAME=sistema
+DB_SSL=true
 
 JWT_SECRET=secret_super_seguro
 JWT_EXPIRES_IN=8h
@@ -302,11 +291,9 @@ Clique em **Create Web Service** - Render fará o deploy automaticamente!
 
 ## 🛢️ Banco de Dados em Produção
 
-**Opções recomendadas:**
+**Opção recomendada:**
 
-- **PostgreSQL no Render** (recomendado): nativo e fácil de configurar
-- **Railway** (MySQL): [railway.app](https://railway.app)
-- **AWS RDS**: robusto para grandes volumes
+- **PostgreSQL no Render** (recomendado): nativo, fácil de configurar e provê `DATABASE_URL` automaticamente
 
 Ver [RENDER_DEPLOY_GUIDE.md](RENDER_DEPLOY_GUIDE.md) para instruções detalhadas.
 
@@ -341,14 +328,14 @@ Isso cria usuários, clientes, produtos e vendas de exemplo para facilitar teste
 
 ---
 
-## 🏗️ Estrutura de Abstração de Banco
+## 🏗️ Estrutura de Banco de Dados
 
-A API implementa uma camada de abstração em `src/config/database.js` que permite **alternar entre MySQL e PostgreSQL** sem alterar os controllers/services:
+A API utiliza **PostgreSQL** como banco de dados. O arquivo `src/config/database.js` implementa:
 
-- **DB_TYPE=mysql**: usa `mysql2/promise`
-- **DB_TYPE=postgres**: usa `pg` (node-postgres)
-- **Placeholders**: Convertem automaticamente `?` (MySQL) para `$1,$2...` (PostgreSQL)
-- **Insert IDs**: Normalizam `insertId` (MySQL) com `RETURNING id` (PostgreSQL) via `getInsertedId()`
+- **Conexão via DATABASE_URL** (fornecido por Render) ou via variáveis individuais (desenvolvimento local)
+- **Placeholders**: Converte automaticamente `?` para `$1,$2...` (formato PostgreSQL)
+- **Insert IDs**: Normaliza com `RETURNING id` (PostgreSQL) via helper `getInsertedId()`
+- **Transações**: Suporte completo via `pool.getConnection()`
 
 Veja `src/utils/dbUtils.js` para detalhes.
 
@@ -379,11 +366,8 @@ Configure no Render em **Settings** → **Health Check** → **Path**: `/health`
 
 ## 📋 Schema e Estrutura de Dados
 
-### MySQL
-`sql/schema.sql` - Schema completo para MySQL com triggers, funções, views e índices
-
 ### PostgreSQL
-`sql/schema_postgres.sql` - Schema adaptado para PostgreSQL com:
+`sql/schema_postgres.sql` - Schema completo para PostgreSQL com:
 - Enums (tipos customizados)
 - BIGSERIAL para IDs
 - Funções plpgsql
@@ -432,11 +416,11 @@ curl -X POST http://localhost:3000/api/produtos \
 
 ```bash
 # Verifique:
-1. DB_TYPE está correto (mysql ou postgres)?
-2. DB_HOST, DB_USER, DB_PASSWORD estão certos?
-3. Firewall permite acesso?
-4. Se banco externo, DB_SSL=true?
-5. DATABASE_URL está formatada corretamente (se PostgreSQL)?
+1. DATABASE_URL está formatada corretamente (postgres://user:pass@host:port/db)?
+2. Ou DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME estão corretos?
+3. Firewall permite acesso à porta 5432?
+4. DB_SSL=true se usar SSL/TLS?
+5. PostgreSQL está rodando?
 ```
 
 ### Erro: "Port is already in use"
@@ -459,7 +443,7 @@ Faça login novamente para gerar novo token.
 ## 📚 Documentação
 
 - [Express.js](https://expressjs.com)
-- [MySQL2/Promise](https://github.com/sidorares/node-mysql2)
+- [node-postgres (pg)](https://node-postgres.com/)
 - [Render Docs](https://render.com/docs)
 - [JWT.io](https://jwt.io)
 

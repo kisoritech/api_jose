@@ -1,89 +1,67 @@
 /*
-  Database abstraction layer that supports either MySQL (mysql2/promise)
-  or PostgreSQL (pg). The connection type is chosen via the `DB_TYPE`
-  environment variable ("mysql" is the default). On Render, you can also
-  rely on a `DATABASE_URL` provided by the platform.
+  Database configuration for PostgreSQL (pg).
+  Uses either DATABASE_URL (recommended, provided by Render) or individual 
+  connection parameters (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME).
 
-  The goal is to keep the rest of the codebase unchanged: controllers and
-  services still call `pool.execute(sql, params)` and transactions work via
-  `pool.getConnection()`; we convert `?` placeholders to `$1/$2` when using
-  Postgres and transparently append `RETURNING id` to INSERTs so that the
-  existing `insertId`-style logic continues to function.
+  Helper functions convert `?` placeholders to `$1/$2` format and automatically
+  append `RETURNING id` to INSERT statements for compatibility with existing code.
 */
 
 require('dotenv').config();
 
-const dbType = (process.env.DB_TYPE || 'mysql').toLowerCase();
-let pool;
+const { Pool } = require('pg');
 
-if (dbType === 'postgres' || dbType === 'pg') {
-  const { Pool } = require('pg');
+const pgConfig = process.env.DATABASE_URL
+  ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    }
+  : {
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    };
 
-  const pgConfig = process.env.DATABASE_URL
-    ? {
-        connectionString: process.env.DATABASE_URL,
-        ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-      }
-    : {
-        host: process.env.DB_HOST || 'localhost',
-        port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        database: process.env.DB_NAME,
-        ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-      };
+const pool = new Pool(pgConfig);
 
-  pool = new Pool(pgConfig);
+// Convert ? placeholders to numbered $1, $2, ...
+function convertPlaceholders(sql) {
+  let idx = 0;
+  return sql.replace(/\?/g, () => '$' + (++idx));
+}
 
-  // helper to convert `?` placeholders into numbered $1, $2, ...
-  function convertPlaceholders(sql) {
-    let idx = 0;
-    return sql.replace(/\?/g, () => '$' + (++idx));
+// Execute query with automatic RETURNING id for INSERTs
+async function execute(sql, params = []) {
+  let newSql = convertPlaceholders(sql);
+  // Automatically add RETURNING id for INSERTs when not explicit
+  if (/^\s*INSERT\b/i.test(newSql) && !/RETURNING\b/i.test(newSql)) {
+    newSql += ' RETURNING id';
   }
+  const res = await pool.query(newSql, params);
+  return [res.rows, res];
+}
 
-  async function execute(sql, params = []) {
+pool.execute = execute;
+
+// Get connection for transactions
+pool.getConnection = async () => {
+  const client = await pool.connect();
+  client.execute = async (sql, params = []) => {
     let newSql = convertPlaceholders(sql);
-    // automatically return id for INSERTs when not explicit
     if (/^\s*INSERT\b/i.test(newSql) && !/RETURNING\b/i.test(newSql)) {
       newSql += ' RETURNING id';
     }
-    const res = await pool.query(newSql, params);
+    const res = await client.query(newSql, params);
     return [res.rows, res];
-  }
-
-  pool.execute = execute;
-
-  // getConnection should provide the same interface as mysql2 connection
-  pool.getConnection = async () => {
-    const client = await pool.connect();
-    client.execute = async (sql, params = []) => {
-      let newSql = convertPlaceholders(sql);
-      if (/^\s*INSERT\b/i.test(newSql) && !/RETURNING\b/i.test(newSql)) {
-        newSql += ' RETURNING id';
-      }
-      const res = await client.query(newSql, params);
-      return [res.rows, res];
-    };
-    client.beginTransaction = () => client.query('BEGIN');
-    client.commit = () => client.query('COMMIT');
-    client.rollback = () => client.query('ROLLBACK');
-    client.release = () => client.release();
-    return client;
   };
-} else {
-  const mysql = require('mysql2/promise');
-  pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '1234',
-    database: process.env.DB_NAME || 'josedecorando',
-    waitForConnections: true,
-    connectionLimit: 10,
-    enableKeepAlive: true,
-    keepAliveInitialDelayMs: 0,
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
-  });
-  // mysql2 already exposes execute and getConnection with the expected API
-}
+  client.beginTransaction = () => client.query('BEGIN');
+  client.commit = () => client.query('COMMIT');
+  client.rollback = () => client.query('ROLLBACK');
+  client.release = () => client.release();
+  return client;
+};
 
 module.exports = pool;

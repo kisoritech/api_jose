@@ -5,13 +5,11 @@
  * Uso: node seedData.js
  * 
  * Cria usuários, clientes, produtos e vendas de exemplo
- * Detecção automática de MySQL vs PostgreSQL via DB_TYPE
+ * Utiliza PostgreSQL conforme configurado
  */
 
 const pool = require('./src/config/database');
 const bcrypt = require('bcryptjs');
-
-const dbType = (process.env.DB_TYPE || 'mysql').toLowerCase();
 
 async function seed() {
   const connection = await pool.getConnection();

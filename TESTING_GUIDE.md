@@ -1,6 +1,6 @@
-# API Testing Guide - MySQL & PostgreSQL
+# API Testing Guide - PostgreSQL
 
-Todos os exemplos funcionam igualmente com MySQL ou PostgreSQL, conforme configurado em `.env`.
+Todos os exemplos trabalham com PostgreSQL conforme configurado em `.env`.
 
 ## 🔐 Autenticação
 
@@ -258,36 +258,25 @@ curl -X GET http://localhost:3000/health
 
 ---
 
-## 🔍 Testando com Diferentes Bancos
+## 🔍 Configuração do Banco de Dados
 
-### Alternando entre MySQL e PostgreSQL
+### PostgreSQL
 
-Não precisa mudar nenhum comando! Basta alterar `.env`:
+Configure em `.env`:
 
-**Para MySQL**:
 ```env
-DB_TYPE=mysql
 DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=1234
-DB_NAME=sistema
-```
-
-**Para PostgreSQL**:
-```env
-DB_TYPE=postgres
-DB_HOST=localhost
+DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=sua_senha
 DB_NAME=sistema
+DB_SSL=false
 ```
 
 Depois:
 ```bash
 npm run dev
 ```
-
-Todos os endpoints funcionam **idêntico** em ambos os bancos.
 
 ---
 
@@ -304,9 +293,6 @@ npm run dev
 ### Checando status do banco
 
 ```bash
-# MySQL
-mysql -u root -p -e "SELECT COUNT(*) FROM usuarios;"
-
 # PostgreSQL
 psql $DATABASE_URL -c "SELECT COUNT(*) FROM usuarios;"
 ```
@@ -314,9 +300,6 @@ psql $DATABASE_URL -c "SELECT COUNT(*) FROM usuarios;"
 ### Regenerando o schema
 
 ```bash
-# MySQL
-mysql -u root -p sistema < sql/schema.sql
-
 # PostgreSQL
 psql $DATABASE_URL < sql/schema_postgres.sql
 ```

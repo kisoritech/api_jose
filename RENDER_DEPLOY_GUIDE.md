@@ -1,18 +1,17 @@
-# 🚀 Guia de Deploy no Render (MySQL + PostgreSQL)
+# 🚀 Guia de Deploy no Render (PostgreSQL)
 
-Esta API foi atualizada para suportar tanto **MySQL** quanto **PostgreSQL**. Este guia explica como fazer deploy em ambos os casos no **Render**.
+Esta API utiliza **PostgreSQL** como banco de dados. Este guia explica como fazer deploy no **Render**.
 
 ## 📋 Pré-requisitos
 
 - Conta em [render.com](https://render.com)
 - Repositório GitHub com o código da API
-- Banco de dados externo (Railway para MySQL, ou Render para PostgreSQL)
 
 ---
 
-## 🔧 Opção 1: Deploy com PostgreSQL (Recomendado para Render)
+## 🔧 Deploy com PostgreSQL no Render
 
-PostgreSQL é nativo no Render e muito mais fácil de configurar.
+PostgreSQL é nativo no Render e muito fácil de configurar.
 
 ### Passo 1: Criar um PostgreSQL Database no Render
 
@@ -26,7 +25,7 @@ PostgreSQL é nativo no Render e muito mais fácil de configurar.
    - **Plan**: Free (válido por 90 dias) ou Starter (pago)
 4. Clique **Create Database**
 
-Render fornecerá automaticamente uma **Internal Database URL**. Anote ela para depois.
+Render fornecerá automaticamente uma `DATABASE_URL`. Anote ela para depois.
 
 ### Passo 2: Deploy da API
 
@@ -50,14 +49,11 @@ Na tela de criação do Web Service, role para **Environment**:
 NODE_ENV=production
 PORT=3000
 
-DB_TYPE=postgres
-# Render exporta automatically, não precisa configurar DATABASE_URL manualmente
-
 JWT_SECRET=seu_segredo_super_seguro_aqui
 JWT_EXPIRES_IN=8h
 ```
 
-⚠️ **Importante**: Render **automaticamente** configura `DATABASE_URL` para serviços PostgreSQL, então você não precisa definir `DB_HOST`, `DB_USER`, etc.
+⚠️ **Importante**: Render **automaticamente** configura `DATABASE_URL` para serviços PostgreSQL. A API lê esta variável diretamente, então você não precisa adicionar `DB_HOST`, `DB_USER`, etc. manualmente.
 
 ### Passo 4: Executar o Schema
 
@@ -86,19 +82,6 @@ psql "$DATABASE_URL" -f sql/schema_postgres.sql
 
 ✅ **Pronto!** Sua API está rodando com PostgreSQL.
 
----
-
-## 🔧 Opção 2: Deploy com MySQL (via Railway)
-
-Se preferir MySQL, você precisará de um serviço externo como **Railway**.
-
-### Passo 1: Criar MySQL no Railway
-
-1. Acesse [railway.app](https://railway.app)
-2. **New Project** → **MySQL**
-3. Preencha as credenciais
-4. Copie as variáveis de conexão
-
 ### Passo 2: Deploy da API (Render)
 
 1. Acesse [render.com](https://render.com) → **Dashboard**
@@ -114,112 +97,46 @@ Se preferir MySQL, você precisará de um serviço externo como **Railway**.
 NODE_ENV=production
 PORT=3000
 
-DB_TYPE=mysql
-
-DB_HOST=seu_host.mysql.railway.app
-DB_USER=root
-DB_PASSWORD=sua_senha
-DB_NAME=sistema
-DB_SSL=true
-
-JWT_SECRET=seu_segredo_super_seguro_aqui
-JWT_EXPIRES_IN=8h
-```
-
-### Passo 4: Executar o Schema
-
-Conecte ao MySQL do Railway e rode:
-
-```bash
-mysql -h seu_host.mysql.railway.app -u root -p sistema < sql/schema.sql
-```
 
 ---
 
-## 📡 Estrutura da Abstração de Banco
+## 📡 Como a API se Conecta ao PostgreSQL
 
-A API implementa uma **camada de abstração** que permite alternar entre MySQL e PostgreSQL sem mudar o código dos controllers/services. Aqui está como funciona:
-
-### `src/config/database.js`
+A configuração está em `src/config/database.js`:
 
 ```javascript
-// Detecta DB_TYPE do .env
-const dbType = (process.env.DB_TYPE || 'mysql').toLowerCase();
+// Lê DATABASE_URL automaticamente fornecido pelo Render
+// Ou usa variáveis individuais (DB_HOST, DB_USER, etc.) em desenvolvimento
 
-if (dbType === 'postgres' || dbType === 'pg') {
-  // Usa pg (PostgreSQL)
-  // Converte `?` → `$1`, `$2`, etc. automaticamente
-  // Adiciona RETURNING id a inserts
-} else {
-  // Usa mysql2 (MySQL)
-}
-```
+const pgConfig = process.env.DATABASE_URL
+  ? {
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    }
+  : {
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+    };
 
-### Como funciona a compatibilidade:
-
-1. **Placeholders**: MySQL usa `?`, PostgreSQL usa `$1/$2/...` → convertemos automaticamente
-2. **Insert IDs**: MySQL tem `result.insertId`, PostgreSQL usa `RETURNING id` → normalizamos com `getInsertedId(result)`
-3. **Transactions**: interface é idêntica para ambos
-
-### Utilidade `dbUtils.js`
-
-```javascript
-// Extrai o ID inserido de forma genérica
-function getInsertedId(result) {
-  if (result.insertId !== undefined) return result.insertId;     // MySQL
-  if (result.rows && result.rows[0] && result.rows[0].id !== undefined) 
-    return result.rows[0].id;  // PostgreSQL
-  return null;
-}
+const pool = new Pool(pgConfig);
 ```
 
 ---
 
-## 🔄 Migrando de MySQL para PostgreSQL
-
-Se você tem dados em MySQL e quer migrar para PostgreSQL:
-
-1. **Exportar dados do MySQL**:
-```bash
-mysqldump -u root -p sistema > dados.sql
-```
-
-2. **Adaptar o schema PostgreSQL** (se necessário):
-   - Os tipos de dados são compatíveis (NUMERIC → NUMERIC, VARCHAR → VARCHAR, etc.)
-   - Enums podem precisar de ajuste manual
-
-3. **Importar no PostgreSQL**:
-```bash
-psql $DATABASE_URL < sql/schema_postgres.sql
-psql $DATABASE_URL < dados_adaptados.sql
-```
-
----
-
-## 🧪 Testar Localmente
-
-### Com MySQL
+## 🧪 Testar Localmente com PostgreSQL
 
 ```bash
 # .env
-DB_TYPE=mysql
 DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=sua_senha
-DB_NAME=sistema
-
-npm run dev
-```
-
-### Com PostgreSQL
-
-```bash
-# .env
-DB_TYPE=postgres
-DB_HOST=localhost
+DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=sua_senha
 DB_NAME=sistema
+DB_SSL=false
 
 npm run dev
 ```
@@ -228,28 +145,22 @@ npm run dev
 
 ## ❌ Troubleshooting
 
-### "Bind parameters must not contain undefined" (PostgreSQL)
+### Erro: "Bind parameters must not contain undefined"
 
-Verifique que todos os placeholders têm valores correspondentes em `params`.
-
-### "DATABASE_URL does not start with postgresql:// or postgres://"
-
-Certifique-se de que a `DATABASE_URL` está no formato correto:
-```
-postgres://user:password@host:port/database
-```
+Verifique que todos os placeholders têm valores correspondentes nos parâmetros.
 
 ### Erro de conexão ao conectar ao PostgreSQL do Render
 
 - Verifique se o **Internal Server** está conectado corretamente
-- Use a **Internal Database URL** se estiver em um ambiente Render
+- Use a **Internal Database URL** para melhor performance
 - Render bloqueia conexões externas por padrão em planos Free
 
 ### Views e Triggers não funcionam
 
-Verifique se você rodou o schema correto:
-- MySQL: `sql/schema.sql`
-- PostgreSQL: `sql/schema_postgres.sql`
+Verifique se você rodou o schema PostgreSQL correto:
+```bash
+psql $DATABASE_URL -f sql/schema_postgres.sql
+```
 
 ---
 
@@ -265,10 +176,9 @@ Render pode monitorar a saúde da sua API. Configure em **Settings** → **Healt
 ## 📚 Referências
 
 - [Render Docs](https://render.com/docs)
-- [PostgreSQL Enums](https://www.postgresql.org/docs/current/datatype-enum.html)
-- [mysql2/promise](https://github.com/sidorares/node-mysql2)
-- [pg (node-postgres)](https://node-postgres.com/)
+- [PostgreSQL](https://www.postgresql.org/)
+- [node-postgres (pg)](https://node-postgres.com/)
 
 ---
 
-**Versão**: 1.0.0 | **Data**: 3 de março de 2026
+**Versão**: 1.0.0 | **Data**: 4 de março de 2026
