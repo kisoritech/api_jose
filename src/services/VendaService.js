@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { getInsertedId } = require('../utils/dbUtils');
 
 class VendaService {
 
@@ -24,7 +25,7 @@ class VendaService {
         [usuario_id, dados.cliente_id, valor_total, dados.forma_pagamento, dados.frete_valor || 0]
       );
 
-      const vendaId = vendaResult.insertId;
+      const vendaId = getInsertedId(vendaResult);
 
       for (let item of dados.itens) {
         await connection.execute(

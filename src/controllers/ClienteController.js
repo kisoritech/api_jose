@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { getInsertedId } = require('../utils/dbUtils');
 
 class ClienteController {
   async listar(req, res, next) {
@@ -30,7 +31,7 @@ class ClienteController {
         'INSERT INTO clientes (nome, email, telefone, tipo_pessoa) VALUES (?, ?, ?, ?)',
         [nome.trim(), email ?? null, telefone ?? null, tipo_pessoa ?? 'fisica']
       );
-      res.status(201).json({ id: result.insertId });
+      res.status(201).json({ id: getInsertedId(result) });
     } catch (err) { next(err); }
   }
 

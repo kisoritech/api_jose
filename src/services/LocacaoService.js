@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { getInsertedId } = require('../utils/dbUtils');
 
 class LocacaoService {
 
@@ -24,7 +25,7 @@ class LocacaoService {
       );
 
       await connection.commit();
-      return { id: result.insertId };
+      return { id: getInsertedId(result) };
     } catch (err) {
       await connection.rollback();
       throw err;

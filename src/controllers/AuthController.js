@@ -1,6 +1,7 @@
 const pool = require('../config/database');
 const bcrypt = require('bcryptjs');
 const generateToken = require('../utils/generateToken');
+const { getInsertedId } = require('../utils/dbUtils');
 
 class AuthController {
   async register(req, res, next) {
@@ -16,8 +17,9 @@ class AuthController {
         [nome, email, hashed, perfil || 'vendedor']
       );
 
-      const token = generateToken({ id: result.insertId });
-      res.status(201).json({ id: result.insertId, token });
+      const newId = getInsertedId(result);
+      const token = generateToken({ id: newId });
+      res.status(201).json({ id: newId, token });
     } catch (err) {
       next(err);
     }

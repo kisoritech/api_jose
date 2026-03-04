@@ -1,4 +1,4 @@
-# 🚀 API Node.js | Express + MySQL
+# 🚀 API Node.js | Express + MySQL / PostgreSQL
 
 Aplicação profissional pronta para produção com autenticação JWT, gestão de vendas, locações e estoque.
 
@@ -33,8 +33,17 @@ npm install
 # 3. Crie o arquivo .env
 cp .env.example .env
 
-# 4. Configure o banco MySQL
+# 4. Configure o banco de dados
+# Durante o desenvolvimento você pode usar MySQL ou PostgreSQL; o driver é
+# controlado pela variável DB_TYPE do `.env` (mysql ou postgres). Para
+# PostgreSQL há um segundo arquivo de esquema com todas as enums e triggers
+# adaptadas ao dialeto.
+
+# - MySQL
 mysql -u seu_usuario -p seu_banco < sql/schema.sql
+
+# - PostgreSQL
+psql -U seu_usuario -d seu_banco -f sql/schema_postgres.sql
 
 # 5. Inicie em desenvolvimento
 npm run dev
@@ -59,11 +68,16 @@ Edite o `.env` com os valores desejados:
 NODE_ENV=development
 PORT=3000
 
+# if you want to use Postgres set DB_TYPE=postgres and either
+# supply individual connection vars or use DATABASE_URL provided by Render
+DB_TYPE=mysql          # mysql or postgres
+
 DB_HOST=localhost
 DB_USER=root
 DB_PASSWORD=sua_senha
 DB_NAME=sistema
 DB_SSL=false
+#DATABASE_URL=postgres://user:pass@host:5432/sistema
 
 JWT_SECRET=supersegredo
 JWT_EXPIRES_IN=8h
@@ -251,14 +265,30 @@ git push -u origin main
 
 ### Passo 4: Environment Variables
 
+**Opção A: MySQL (e.g., Railway)**
+
 ```
 NODE_ENV=production
+DB_TYPE=mysql
 
 DB_HOST=seu_host.mysql.railway.app
 DB_USER=seu_usuario
 DB_PASSWORD=sua_senha
 DB_NAME=sistema
 DB_SSL=true
+
+JWT_SECRET=secret_super_seguro
+JWT_EXPIRES_IN=8h
+```
+
+**Opção B: PostgreSQL (Render fornece DATABASE_URL automaticamente)**
+
+```
+NODE_ENV=production
+DB_TYPE=postgres
+
+# Render já exporta DATABASE_URL automaticamente para PostgreSQL
+# (não precisa configurar DB_HOST, DB_USER, etc. nesse caso)
 
 JWT_SECRET=secret_super_seguro
 JWT_EXPIRES_IN=8h
@@ -274,19 +304,23 @@ Clique em **Create Web Service** - Render fará o deploy automaticamente!
 
 **Opções recomendadas:**
 
-- **Railway** (melhor custo): [railway.app](https://railway.app)
-- **PlanetScale** (serverless): [planetscale.com](https://planetscale.com)
-- **AWS RDS** (robusto): AWS Console
+- **PostgreSQL no Render** (recomendado): nativo e fácil de configurar
+- **Railway** (MySQL): [railway.app](https://railway.app)
+- **AWS RDS**: robusto para grandes volumes
+
+Ver [RENDER_DEPLOY_GUIDE.md](RENDER_DEPLOY_GUIDE.md) para instruções detalhadas.
 
 ---
 
 ## 🧪 Testar Localmente
 
+### Modo desenvolvimento
+
 ```bash
 # Terminal 1
 npm run dev
 
-# Terminal 2
+# Terminal 2 - registrar usuário
 curl -X POST http://localhost:3000/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
@@ -297,6 +331,27 @@ curl -X POST http://localhost:3000/api/auth/register \
   }'
 ```
 
+### Popular com dados de teste
+
+```bash
+npm run seed
+```
+
+Isso cria usuários, clientes, produtos e vendas de exemplo para facilitar testes.
+
+---
+
+## 🏗️ Estrutura de Abstração de Banco
+
+A API implementa uma camada de abstração em `src/config/database.js` que permite **alternar entre MySQL e PostgreSQL** sem alterar os controllers/services:
+
+- **DB_TYPE=mysql**: usa `mysql2/promise`
+- **DB_TYPE=postgres**: usa `pg` (node-postgres)
+- **Placeholders**: Convertem automaticamente `?` (MySQL) para `$1,$2...` (PostgreSQL)
+- **Insert IDs**: Normalizam `insertId` (MySQL) com `RETURNING id` (PostgreSQL) via `getInsertedId()`
+
+Veja `src/utils/dbUtils.js` para detalhes.
+
 ---
 
 ## 🔒 Segurança em Produção
@@ -305,8 +360,9 @@ curl -X POST http://localhost:3000/api/auth/register \
 - ✅ **Rate Limiting** - 100 req/15min por IP
 - ✅ **CORS** - controle de origem
 - ✅ **JWT** - autenticação stateless
-- ✅ **bcrypt** - hash de senhas
-- ✅ **SSL/TLS** - criptografia de banco
+- ✅ **bcrypt** - hash de senhas (com 8 rounds)
+- ✅ **SSL/TLS** - criptografia de transporte
+- ✅ **Triggers & Functions** - lógica de negócio no banco
 
 ---
 
@@ -317,7 +373,36 @@ GET /health
 # { "status": "OK" }
 ```
 
-Configure no Render em **Health Check Path**: `/health`
+Configure no Render em **Settings** → **Health Check** → **Path**: `/health`
+
+---
+
+## 📋 Schema e Estrutura de Dados
+
+### MySQL
+`sql/schema.sql` - Schema completo para MySQL com triggers, funções, views e índices
+
+### PostgreSQL
+`sql/schema_postgres.sql` - Schema adaptado para PostgreSQL com:
+- Enums (tipos customizados)
+- BIGSERIAL para IDs
+- Funções plpgsql
+- Triggers automáticos para:
+  - Validação de estoque em vendas e locações
+  - Atualização automática de saldos
+  - Logs de auditoria
+  - Prorrogações de locação
+
+### Views Disponíveis
+
+- `vw_estoque_resumo` - Status de estoque (esgotado/baixo/normal)
+- `vw_vendas_detalhadas` - Vendas com cliente e vendedor
+- `vw_venda_itens_margem` - Margem de lucro por item
+- `vw_locacoes_ativas` - Locações vigentes com dias de atraso
+- `vw_financeiro_clientes` - Resumo financeiro por cliente
+- `vw_dashboard_resumo` - KPIs principais
+- `vw_produtos_mais_vendidos` - Ranking de produtos
+- `vw_cliente_historico` - Histórico de compras por cliente
 
 ---
 
@@ -346,11 +431,12 @@ curl -X POST http://localhost:3000/api/produtos \
 ### Erro: ECONNREFUSED (banco não conecta)
 
 ```bash
-# Verifica:
-1. DB_HOST está correto?
-2. DB_USER e DB_PASSWORD estão certas?
+# Verifique:
+1. DB_TYPE está correto (mysql ou postgres)?
+2. DB_HOST, DB_USER, DB_PASSWORD estão certos?
 3. Firewall permite acesso?
-4. Se externo, DB_SSL=true?
+4. Se banco externo, DB_SSL=true?
+5. DATABASE_URL está formatada corretamente (se PostgreSQL)?
 ```
 
 ### Erro: "Port is already in use"
