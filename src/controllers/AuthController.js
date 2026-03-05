@@ -28,7 +28,10 @@ class AuthController {
   async login(req, res, next) {
     try {
       const { email, password } = req.body;
-      const [rows] = await pool.execute('SELECT id, senha_hash FROM usuarios WHERE email = ?', [email]);
+      const [rows] = await pool.execute(
+        'SELECT id, senha_hash, nome, perfil, ultimo_login FROM usuarios WHERE email = ?',
+        [email]
+      );
       const user = rows[0];
       if (!user) return res.status(400).json({ error: 'Credenciais inválidas' });
 
@@ -43,17 +46,21 @@ class AuthController {
       const match = await bcrypt.compare(password, user.senha_hash);
       if (!match) return res.status(400).json({ error: 'Credenciais inválidas' });
 
+      // Atualizar ultimo_login com timestamp atual
+      const now = new Date();
+      await pool.execute('UPDATE usuarios SET ultimo_login = ? WHERE id = ?', [now, user.id]);
+
       const token = generateToken({ id: user.id });
-       // also return basic user info so client can use immediately
-       res.json({
-         token,
-         user: {
-           id: user.id,
-           email: user.email,
-           perfil: user.perfil,
-           nome: user.nome
-         }
-       });
+      res.json({
+        token,
+        user: {
+          id: user.id,
+          email: email,
+          nome: user.nome,
+          perfil: user.perfil,
+          ultimo_login: user.ultimo_login
+        }
+      });
     } catch (err) {
       next(err);
     }
