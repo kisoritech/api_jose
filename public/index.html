@@ -45,9 +45,27 @@
       <div class="col">
         <button id="btnLogin">Login</button>
       </div>
-      <div class="col">
-        <button id="btnRegister">Registrar (teste)</button>
-      </div>
+    </div>
+
+    <div class="section" style="margin-top:12px;">
+      <strong>Registro de usuário</strong>
+      <label>Nome
+        <input id="regNome" placeholder="João Silva" />
+      </label>
+      <label>Email
+        <input id="regEmail" placeholder="teste@example.com" />
+      </label>
+      <label>Senha
+        <input id="regPassword" type="password" placeholder="123456" />
+      </label>
+      <label>Perfil
+        <select id="regPerfil">
+          <option value="vendedor" selected>vendedor</option>
+          <option value="gerente">gerente</option>
+          <option value="admin">admin</option>
+        </select>
+      </label>
+      <button id="btnRegister">Registrar</button>
     </div>
 
     <label>Token
@@ -57,7 +75,7 @@
       <button id="btnCopy">Copiar token</button>
       <button id="btnClear">Limpar token</button>
     </div>
-    <small>Dica: após o login, o token será salvo em <em>localStorage</em> e usado automaticamente nas requisições.</small>
+    <small>Dica: após o login ou registro, o token será salvo em <em>localStorage</em> e usado automaticamente nas requisições.</small>
   </div>
 
   <div class="section">
@@ -160,10 +178,11 @@
     });
 
     document.getElementById('btnRegister').addEventListener('click', async ()=>{
-      const nome = prompt('Nome do usuário teste (ex: João Silva)') || 'Teste';
-      const email = prompt('Email (ex: teste@example.com)') || `teste+${Date.now()}@example.com`;
-      const password = prompt('Senha (ex: 123456)') || '123456';
-      const perfil = prompt('Perfil (admin|gerente|vendedor)', 'vendedor') || 'vendedor';
+      const nome = document.getElementById('regNome').value;
+      const email = document.getElementById('regEmail').value;
+      const password = document.getElementById('regPassword').value;
+      const perfil = document.getElementById('regPerfil').value;
+      if(!nome||!email||!password) return alert('Preencha nome, email e senha');
       const r = await request('/api/auth/register', {method:'POST', body:{nome,email,password,perfil}, auth:false});
       document.getElementById('response').textContent = JSON.stringify(r, null, 2);
       if(r.status===201 && r.body && r.body.token){ setToken(r.body.token); }
