@@ -784,11 +784,14 @@ Configure no Render em **Settings** → **Health Check** → **Path**: `/health`
 - Enums (tipos customizados)
 - BIGSERIAL para IDs
 - Funções plpgsql
+- Constraints de validação (ex: quantidade_disponivel >= 0)
 - Triggers automáticos para:
   - Validação de estoque em vendas e locações
   - Atualização automática de saldos
   - Logs de auditoria
   - Prorrogações de locação
+  - Validação de quantidade disponível não negativa em produtos
+  - Atualização automática do campo `atualizado_em` em produtos
 
 ### Views Disponíveis
 

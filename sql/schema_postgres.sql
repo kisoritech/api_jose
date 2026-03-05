@@ -47,6 +47,10 @@ CREATE TABLE produtos (
     atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE public.produtos
+ADD CONSTRAINT chk_quantidade_disponivel
+CHECK (quantidade_disponivel >= 0);
+
 CREATE TABLE transacoes (
     id BIGSERIAL PRIMARY KEY,
     produto_id BIGINT REFERENCES produtos(id),
@@ -367,15 +371,23 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION fn_before_update_produtos()
-RETURNS TRIGGER AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    IF NEW.estoque_atual < 0 THEN
-        RAISE EXCEPTION 'Estoque não pode ser negativo.';
+
+    -- impedir quantidade negativa
+    IF NEW.quantidade_disponivel < 0 THEN
+        RAISE EXCEPTION 'Quantidade disponível não pode ser negativa';
     END IF;
 
+    -- atualizar data automaticamente
+    NEW.atualizado_em = CURRENT_TIMESTAMP;
+
     RETURN NEW;
+
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE OR REPLACE FUNCTION fn_before_delete_vendas()
 RETURNS TRIGGER AS $$
