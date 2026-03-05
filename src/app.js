@@ -10,8 +10,14 @@ const errorMiddleware = require('./middlewares/errorMiddleware');
 
 const app = express();
 
-// Segurança
-app.use(helmet());
+// Segurança - relaxar CSP em desenvolvimento para permitir testes
+if (process.env.NODE_ENV === 'production') {
+  app.use(helmet());
+} else {
+  app.use(helmet({
+    contentSecurityPolicy: false
+  }));
+}
 app.set('trust proxy', 1);
 
 // Logging (desabilitar em testes)
