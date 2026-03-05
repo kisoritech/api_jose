@@ -69,13 +69,14 @@
     </div>
 
     <label>Token
-      <div class="token-box" id="tokenDisplay">Nenhum token</div>
+      <input id="tokenInput" class="token-box" readonly placeholder="Nenhum token" />
     </label>
     <div class="row">
       <button id="btnCopy">Copiar token</button>
       <button id="btnClear">Limpar token</button>
     </div>
     <small>Dica: após o login ou registro, o token será salvo em <em>localStorage</em> e usado automaticamente nas requisições.</small>
+    <div id="statusMessage" style="margin-top:8px;font-weight:bold"></div>
   </div>
 
   <div class="section">
@@ -116,12 +117,15 @@
     const tokenKey = 'api_test_ui_token';
 
     function setToken(t){
+      const input=document.getElementById('tokenInput');
       if(t){
         localStorage.setItem(tokenKey, t);
-        document.getElementById('tokenDisplay').textContent = t;
+        input.value = t;
+        showStatus('Token armazenado', 'success');
       } else {
         localStorage.removeItem(tokenKey);
-        document.getElementById('tokenDisplay').textContent = 'Nenhum token';
+        input.value = '';
+        showStatus('Token removido', 'info');
       }
     }
 
@@ -131,6 +135,14 @@
 
     // Inicializa token se existir
     if(getToken()) setToken(getToken());
+
+    function showStatus(msg,type='info'){
+      const el=document.getElementById('statusMessage');
+      el.textContent=msg;
+      if(type==='error') el.style.color='red';
+      else if(type==='success') el.style.color='green';
+      else el.style.color='#222';
+    }
 
     document.getElementById('btnCopy').addEventListener('click', async ()=>{
       const t = getToken();
@@ -168,16 +180,17 @@
       const password = document.getElementById('password').value;
       if(!email || !password) return alert('Preencha email e senha');
       const r = await request('/api/auth/login', {method:'POST', body:{email,password}, auth:false});
-      if(r.error){document.getElementById('response').textContent = r.error; return}
+      if(r.error){
+        showStatus(r.error,'error');
+        document.getElementById('response').textContent = r.error;
+        return
+      }
       if(r.status===200 && r.body && r.body.token){
         setToken(r.body.token);
+        showStatus('Login bem sucedido','success');
         document.getElementById('response').textContent = JSON.stringify(r.body, null, 2);
       } else {
-        document.getElementById('response').textContent = JSON.stringify(r, null, 2);
-      }
-    });
-
-    document.getElementById('btnRegister').addEventListener('click', async ()=>{
+        showStatus('Falha no login','error');
       const nome = document.getElementById('regNome').value;
       const email = document.getElementById('regEmail').value;
       const password = document.getElementById('regPassword').value;
@@ -185,7 +198,12 @@
       if(!nome||!email||!password) return alert('Preencha nome, email e senha');
       const r = await request('/api/auth/register', {method:'POST', body:{nome,email,password,perfil}, auth:false});
       document.getElementById('response').textContent = JSON.stringify(r, null, 2);
-      if(r.status===201 && r.body && r.body.token){ setToken(r.body.token); }
+      if(r.status===201 && r.body && r.body.token){ 
+        setToken(r.body.token);
+        showStatus('Registro realizado e token recebido','success');
+      } else if(r.status && r.status!==201){
+        showStatus('Falha no registro','error');
+      }
     });
 
     document.getElementById('btnSend').addEventListener('click', async ()=>{
@@ -196,6 +214,8 @@
       if(body) try{ parsedBody = JSON.parse(body); } catch(e){ return alert('Body inválido: JSON mal formado') }
       const r = await request(endpoint, {method, body: parsedBody, auth:true});
       document.getElementById('response').textContent = JSON.stringify(r, null, 2);
+      if(r.ok) showStatus('Requisição sucedida','success');
+      else showStatus('Erro na requisição: '+r.status,'error');
     });
 
     document.getElementById('btnSendNoAuth').addEventListener('click', async ()=>{
@@ -206,6 +226,8 @@
       if(body) try{ parsedBody = JSON.parse(body); } catch(e){ return alert('Body inválido: JSON mal formado') }
       const r = await request(endpoint, {method, body: parsedBody, auth:false});
       document.getElementById('response').textContent = JSON.stringify(r, null, 2);
+      if(r.ok) showStatus('Requisição sem auth sucedida','success');
+      else showStatus('Erro na requisição: '+r.status,'error');
     });
 
   </script>
