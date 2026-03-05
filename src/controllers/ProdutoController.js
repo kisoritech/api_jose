@@ -5,7 +5,7 @@ class ProdutoController {
   async listar(req, res, next) {
     try {
       const [rows] = await pool.execute(
-        'SELECT id, nome, descricao, preco_venda AS preco, estoque_atual AS estoque, tipo, codigo_barras FROM produtos'
+        'SELECT id, nome, descricao, preco_venda AS preco, quantidade_disponivel AS estoque, quantidade_total, tipo, codigo_barras FROM produtos'
       );
       res.json(rows);
     } catch (err) { next(err); }
@@ -15,7 +15,7 @@ class ProdutoController {
     try {
       const { id } = req.params;
       const [rows] = await pool.execute(
-        'SELECT id, nome, descricao, preco_venda AS preco, estoque_atual AS estoque, tipo, codigo_barras FROM produtos WHERE id = ?',
+        'SELECT id, nome, descricao, preco_venda AS preco, quantidade_disponivel AS estoque, quantidade_total, tipo, codigo_barras FROM produtos WHERE id = ?',
         [id]
       );
       if (!rows[0]) return res.status(404).json({ error: 'Produto não encontrado' });
@@ -40,12 +40,12 @@ class ProdutoController {
         return res.status(400).json({ error: 'Campo "preco_venda" (ou "preco") é obrigatório e deve ser um número' });
       }
 
-      const estoque_atual = req.body.estoque_atual ?? req.body.estoque ?? 0;
+      const quantidade_disponivel = req.body.quantidade_disponivel ?? req.body.estoque ?? 0;
       const desc = descricao ?? null; // permite null para descrição
 
       const [result] = await pool.execute(
-        'INSERT INTO produtos (nome, descricao, preco_venda, estoque_atual) VALUES (?, ?, ?, ?)',
-        [nome.trim(), desc, Number(preco_venda), Number(estoque_atual)]
+        'INSERT INTO produtos (nome, descricao, preco_venda, quantidade_disponivel) VALUES (?, ?, ?, ?)',
+        [nome.trim(), desc, Number(preco_venda), Number(quantidade_disponivel)]
       );
       res.status(201).json({ id: getInsertedId(result) });
     } catch (err) { next(err); }
@@ -56,7 +56,7 @@ class ProdutoController {
       const { id } = req.params;
       const { nome, descricao } = req.body;
       const preco_venda = req.body.preco_venda ?? req.body.preco;
-      const estoque_atual = req.body.estoque_atual ?? req.body.estoque;
+      const quantidade_disponivel = req.body.quantidade_disponivel ?? req.body.estoque;
 
       const fields = [];
       const params = [];
@@ -73,9 +73,9 @@ class ProdutoController {
         fields.push('preco_venda = ?'); 
         params.push(Number(preco_venda)); 
       }
-      if (estoque_atual !== undefined && estoque_atual !== null) { 
-        fields.push('estoque_atual = ?'); 
-        params.push(Number(estoque_atual)); 
+      if (quantidade_disponivel !== undefined && quantidade_disponivel !== null) { 
+        fields.push('quantidade_disponivel = ?'); 
+        params.push(Number(quantidade_disponivel)); 
       }
 
       if (fields.length === 0) return res.status(400).json({ error: 'Nada para atualizar' });

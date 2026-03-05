@@ -18,8 +18,6 @@ CREATE TABLE produtos (
     codigo_barras VARCHAR(100) UNIQUE,
     preco_custo DECIMAL(12,2) NOT NULL DEFAULT 0,
     preco_venda DECIMAL(12,2) NOT NULL,
-    estoque_atual INT NOT NULL DEFAULT 0,
-    estoque_minimo INT DEFAULT 0,
     ativo BOOLEAN DEFAULT TRUE,
     criado_por BIGINT UNSIGNED,
     criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -106,13 +104,10 @@ CREATE TABLE clientes (
     -- Dados principais
     tipo_pessoa ENUM('fisica','juridica') NOT NULL,
     nome VARCHAR(150) NOT NULL,
-    nome_fantasia VARCHAR(150) NULL,
 
     -- Documentos
     cpf VARCHAR(14) NULL,
-    cnpj VARCHAR(18) NULL,
     rg VARCHAR(20) NULL,
-    inscricao_estadual VARCHAR(30) NULL,
 
     -- Contato
     email VARCHAR(150) NULL,
@@ -137,8 +132,7 @@ CREATE TABLE clientes (
     atualizado_em DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     -- Restrições
-    UNIQUE KEY unique_cpf (cpf),
-    UNIQUE KEY unique_cnpj (cnpj)
+    UNIQUE KEY unique_cpf (cpf)
     
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

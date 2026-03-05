@@ -37,8 +37,6 @@ CREATE TABLE produtos (
     codigo_barras VARCHAR(100) UNIQUE,
     preco_custo NUMERIC(12,2) DEFAULT 0,
     preco_venda NUMERIC(12,2) NOT NULL,
-    estoque_atual INT DEFAULT 0,
-    estoque_minimo INT DEFAULT 0,
     ativo BOOLEAN DEFAULT TRUE,
     tipo tipo_produto_enum DEFAULT 'venda',
     valor_locacao NUMERIC(12,2),
@@ -65,11 +63,8 @@ CREATE TABLE clientes (
     id BIGSERIAL PRIMARY KEY,
     tipo_pessoa tipo_pessoa_enum NOT NULL,
     nome VARCHAR(150) NOT NULL,
-    nome_fantasia VARCHAR(150),
     cpf VARCHAR(14) UNIQUE,
-    cnpj VARCHAR(18) UNIQUE,
     rg VARCHAR(20),
-    inscricao_estadual VARCHAR(30),
     email VARCHAR(150),
     telefone VARCHAR(20),
     celular VARCHAR(20),
@@ -197,12 +192,11 @@ SELECT
     p.id,
     p.nome,
     p.tipo,
-    p.estoque_atual,
+    p.quantidade_total,
     p.quantidade_disponivel,
-    p.estoque_minimo,
     CASE 
-        WHEN p.estoque_atual = 0 THEN 'esgotado'
-        WHEN p.estoque_atual <= p.estoque_minimo THEN 'baixo'
+        WHEN p.quantidade_disponivel = 0 THEN 'esgotado'
+        WHEN p.quantidade_disponivel <= 2 THEN 'baixo'
         ELSE 'normal'
     END AS status_estoque
 FROM produtos p;
@@ -278,12 +272,12 @@ CREATE OR REPLACE VIEW vw_dashboard_resumo AS
 SELECT
     (SELECT COUNT(*) FROM clientes WHERE ativo = true) AS total_clientes,
     (SELECT COUNT(*) FROM produtos WHERE ativo = true) AS total_produtos,
+    (SELECT COUNT(*) 
+     FROM produtos 
+     WHERE quantidade_disponivel > 0) AS produtos_disponiveis,
     COALESCE(
-        (SELECT SUM(valor_total + COALESCE(frete_valor,0)) 
-         FROM vendas 
-         WHERE status = 'concluida'),
-    0) AS faturamento_total,
-    (SELECT COUNT(*) FROM locacoes WHERE status = 'ativa') AS locacoes_ativas;
+        (SELECT SUM(valor_total) FROM vendas WHERE status = 'concluida'),
+    0) AS faturamento_total;
 
 CREATE OR REPLACE VIEW vw_produtos_mais_vendidos AS
 SELECT 

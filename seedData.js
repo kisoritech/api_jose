@@ -89,7 +89,7 @@ async function seed() {
         codigo_barras: '7890123456789',
         preco_custo: 2500.00,
         preco_venda: 3500.00,
-        estoque_atual: 10,
+        quantidade_disponivel: 10,
         tipo: 'venda'
       },
       {
@@ -98,7 +98,7 @@ async function seed() {
         codigo_barras: '1234567890123',
         preco_custo: 50.00,
         preco_venda: 89.90,
-        estoque_atual: 50,
+        quantidade_disponivel: 50,
         tipo: 'venda'
       },
       {
@@ -107,7 +107,7 @@ async function seed() {
         codigo_barras: '9876543210987',
         preco_custo: 200.00,
         preco_venda: 399.90,
-        estoque_atual: 15,
+        quantidade_disponivel: 15,
         tipo: 'venda'
       },
       {
@@ -116,7 +116,7 @@ async function seed() {
         codigo_barras: '5555555555555',
         preco_custo: 2000.00,
         preco_venda: 3000.00,
-        estoque_atual: 5,
+        quantidade_disponivel: 5,
         tipo: 'ambos',
         valor_locacao: 200.00,
         quantidade_total: 5,
@@ -129,9 +129,9 @@ async function seed() {
     for (const p of produtos) {
       const [result] = await connection.execute(
         `INSERT INTO produtos 
-         (nome, descricao, codigo_barras, preco_custo, preco_venda, estoque_atual, tipo, valor_locacao, quantidade_total, quantidade_disponivel)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [p.nome, p.descricao, p.codigo_barras, p.preco_custo, p.preco_venda, p.estoque_atual, p.tipo, p.valor_locacao || null, p.quantidade_total || 0, p.quantidade_disponivel || 0]
+         (nome, descricao, codigo_barras, preco_custo, preco_venda, quantidade_disponivel, tipo, valor_locacao, quantidade_total)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [p.nome, p.descricao, p.codigo_barras, p.preco_custo, p.preco_venda, p.quantidade_disponivel, p.tipo, p.valor_locacao || null, p.quantidade_total || p.quantidade_disponivel || 0]
       );
       insertedProdutos.push({
         id: dbType === 'postgres' ? result.rows[0].id : result.insertId,

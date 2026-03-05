@@ -328,7 +328,7 @@ Content-Type: application/json
   "nome": "Notebook Dell",
   "descricao": "Notebook profissional 16GB RAM",
   "preco_venda": 3500.00,
-  "estoque_atual": 10
+  "quantidade_disponivel": 10
 }
 ```
 
@@ -343,7 +343,7 @@ Content-Type: application/json
 {
   "nome": "Notebook HP",
   "preco_venda": 3200.00,
-  "estoque_atual": 15,
+  "quantidade_disponivel": 15,
   "descricao": "Novo modelo"
 }
 ```
@@ -595,7 +595,7 @@ curl -X POST http://localhost:3000/api/produtos \
     "nome": "Notebook Dell XPS",
     "descricao": "Notebook profissional 16GB RAM",
     "preco_venda": 3500.00,
-    "estoque_atual": 10
+    "quantidade_disponivel": 10
   }'
 ```
 
@@ -821,7 +821,7 @@ curl -X POST http://localhost:3000/api/produtos \
   -d '{
     "nome": "Produto Teste",
     "preco_venda": 99.90,
-    "estoque_atual": 50
+    "quantidade_disponivel": 50
   }'
 ```
 
