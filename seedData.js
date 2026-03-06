@@ -85,7 +85,7 @@ async function seed() {
         codigo_barras: '7890123456789',
         preco_custo: 2500.00,
         preco_venda: 3500.00,
-        quantidade_disponivel: 10,
+        quantidade: 10,
         tipo: 'venda'
       },
       {
@@ -94,7 +94,7 @@ async function seed() {
         codigo_barras: '1234567890123',
         preco_custo: 50.00,
         preco_venda: 89.90,
-        quantidade_disponivel: 50,
+        quantidade: 50,
         tipo: 'venda'
       },
       {
@@ -103,7 +103,7 @@ async function seed() {
         codigo_barras: '9876543210987',
         preco_custo: 200.00,
         preco_venda: 399.90,
-        quantidade_disponivel: 15,
+        quantidade: 15,
         tipo: 'venda'
       },
       {
@@ -112,7 +112,7 @@ async function seed() {
         codigo_barras: '5555555555555',
         preco_custo: 2000.00,
         preco_venda: 3000.00,
-        quantidade_disponivel: 5,
+        quantidade: 5,
         tipo: 'ambos',
         valor_locacao: 200.00
       },
@@ -123,9 +123,9 @@ async function seed() {
     for (const p of produtos) {
       const result = await pool.query(
         `INSERT INTO produtos 
-         (nome, descricao, codigo_barras, preco_custo, preco_venda, quantidade_disponivel, tipo, valor_locacao, criado_por)
+         (nome, descricao, codigo_barras, preco_custo, preco_venda, quantidade, tipo, valor_locacao, criado_por)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-        [p.nome, p.descricao, p.codigo_barras, p.preco_custo, p.preco_venda, p.quantidade_disponivel, p.tipo, p.valor_locacao || null, insertedUsuarios[0].id]
+        [p.nome, p.descricao, p.codigo_barras, p.preco_custo, p.preco_venda, p.quantidade, p.tipo, p.valor_locacao || null, insertedUsuarios[0].id]
       );
       insertedProdutos.push({
         id: result.rows[0].id,

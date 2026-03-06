@@ -328,7 +328,7 @@ Content-Type: application/json
   "nome": "Notebook Dell",
   "descricao": "Notebook profissional 16GB RAM",
   "preco_venda": 3500.00,
-  "quantidade_disponivel": 10
+  "quantidade": 10
 }
 ```
 
@@ -343,7 +343,7 @@ Content-Type: application/json
 {
   "nome": "Notebook HP",
   "preco_venda": 3200.00,
-  "quantidade_disponivel": 15,
+  "quantidade": 15,
   "descricao": "Novo modelo"
 }
 ```
@@ -463,11 +463,27 @@ Authorization: Bearer {token}
     "id": 1,
     "nome": "Notebook Dell",
     "tipo": "venda",
-    "quantidade_total": 10,
-    "quantidade_disponivel": 3,
+    "quantidade": 3,
     "status_estoque": "baixo"
   }
 ]
+```
+
+#### Resumo Agregado de Estoque
+```bash
+GET /api/dashboard/estoque-resumido
+Authorization: Bearer {token}
+```
+
+**Resposta** (200):
+```json
+{
+  "total_produtos": 7,
+  "produtos_esgotados": 2,
+  "produtos_baixo_estoque": 3,
+  "produtos_estoque_normal": 2,
+  "total_itens_estoque": 150
+}
 ```
 
 #### Vendas Detalhadas
@@ -530,6 +546,7 @@ Authorization: Bearer {token}
 | POST | `/api/locacoes` | ✅ | Criar locação |
 | GET | `/api/dashboard/resumo` | ✅ | KPIs principais |
 | GET | `/api/dashboard/estoque` | ✅ | Status de estoque |
+| GET | `/api/dashboard/estoque-resumido` | ✅ | Resumo agregado estoque |
 | GET | `/api/dashboard/vendas-detalhadas` | ✅ | Vendas detalhadas |
 | GET | `/api/dashboard/produtos-mais-vendidos` | ✅ | Ranking produtos |
 | GET | `/api/dashboard/locacoes-ativas` | ✅ | Locações ativas |
@@ -679,7 +696,7 @@ curl -X POST http://localhost:3000/api/produtos \
     "nome": "Notebook Dell XPS",
     "descricao": "Notebook profissional 16GB RAM",
     "preco_venda": 3500.00,
-    "quantidade_disponivel": 10
+    "quantidade": 10
   }'
 ```
 
@@ -868,18 +885,21 @@ Configure no Render em **Settings** → **Health Check** → **Path**: `/health`
 - Enums (tipos customizados)
 - BIGSERIAL para IDs
 - Funções plpgsql
-- Constraints de validação (ex: quantidade_disponivel >= 0)
+- Constraints de validação (ex: quantidade >= 0)
 - Triggers automáticos para:
   - Validação de estoque em vendas e locações
   - Atualização automática de saldos
   - Logs de auditoria
   - Prorrogações de locação
-  - Validação de quantidade disponível não negativa em produtos
+  - Validação de quantidade não negativa em produtos
   - Atualização automática do campo `atualizado_em` em produtos
 
 ### Views Disponíveis
 
 - `vw_estoque_resumo` - Status de estoque (esgotado/baixo/normal)
+- `vw_produtos_estoque` - Produtos ativos com quantidade em estoque
+- `vw_dashboard_estoque` - Resumo agregado de estoque (total, esgotados, baixo, normal, Total itens)
+- `vw_produtos_quantidade` - Lista simples de produtos e suas quantidades
 - `vw_vendas_detalhadas` - Vendas com cliente e vendedor
 - `vw_venda_itens_margem` - Margem de lucro por item
 - `vw_locacoes_ativas` - Locações vigentes com dias de atraso
@@ -908,7 +928,7 @@ curl -X POST http://localhost:3000/api/produtos \
   -d '{
     "nome": "Produto Teste",
     "preco_venda": 99.90,
-    "quantidade_disponivel": 50
+    "quantidade": 50
   }'
 ```
 

@@ -40,16 +40,15 @@ CREATE TABLE produtos (
     ativo BOOLEAN DEFAULT TRUE,
     tipo tipo_produto_enum DEFAULT 'venda',
     valor_locacao NUMERIC(12,2),
-    quantidade_total INT DEFAULT 0,
-    quantidade_disponivel INT DEFAULT 0,
+    quantidade INT DEFAULT 0,
     criado_por BIGINT REFERENCES usuarios(id),
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 ALTER TABLE public.produtos
-ADD CONSTRAINT chk_quantidade_disponivel
-CHECK (quantidade_disponivel >= 0);
+ADD CONSTRAINT chk_quantidade
+CHECK (quantidade >= 0);
 
 CREATE TABLE transacoes (
     id BIGSERIAL PRIMARY KEY,
@@ -196,14 +195,40 @@ SELECT
     p.id,
     p.nome,
     p.tipo,
-    p.quantidade_total,
-    p.quantidade_disponivel,
+    p.quantidade,
     CASE 
-        WHEN p.quantidade_disponivel = 0 THEN 'esgotado'
-        WHEN p.quantidade_disponivel <= 2 THEN 'baixo'
+        WHEN p.quantidade = 0 THEN 'esgotado'
+        WHEN p.quantidade <= 2 THEN 'baixo'
         ELSE 'normal'
     END AS status_estoque
-FROM produtos p;
+FROM produtos p
+WHERE p.ativo = true;
+
+CREATE OR REPLACE VIEW vw_produtos_estoque AS
+SELECT
+    id,
+    nome,
+    tipo,
+    quantidade
+FROM produtos
+WHERE ativo = true;
+
+CREATE OR REPLACE VIEW vw_dashboard_estoque AS
+SELECT
+    COUNT(*) AS total_produtos,
+    SUM(CASE WHEN quantidade = 0 THEN 1 ELSE 0 END) AS produtos_esgotados,
+    SUM(CASE WHEN quantidade > 0 AND quantidade <= 2 THEN 1 ELSE 0 END) AS produtos_baixo_estoque,
+    SUM(CASE WHEN quantidade > 2 THEN 1 ELSE 0 END) AS produtos_estoque_normal,
+    SUM(quantidade) AS total_itens_estoque
+FROM produtos
+WHERE ativo = true;
+
+CREATE OR REPLACE VIEW vw_produtos_quantidade AS
+SELECT
+    nome,
+    quantidade
+FROM produtos
+WHERE ativo = true;
 
 CREATE OR REPLACE VIEW vw_vendas_detalhadas AS
 SELECT 
@@ -278,7 +303,7 @@ SELECT
     (SELECT COUNT(*) FROM produtos WHERE ativo = true) AS total_produtos,
     (SELECT COUNT(*) 
      FROM produtos 
-     WHERE quantidade_disponivel > 0) AS produtos_disponiveis,
+     WHERE quantidade > 0) AS produtos_disponiveis,
     COALESCE(
         (SELECT SUM(valor_total) FROM vendas WHERE status = 'concluida'),
     0) AS faturamento_total;
@@ -294,7 +319,7 @@ GROUP BY p.id, p.nome;
 
 CREATE OR REPLACE VIEW vw_cliente_historico AS
 SELECT 
-    c.id AS cliente_id,
+    c.id AS cliente_i
     c.nome,
     v.id AS venda_id,
     v.criado_em,
@@ -310,7 +335,7 @@ BEGIN
     UPDATE locacao_itens
     SET data_prevista_devolucao = NEW.nova_data
     WHERE id = NEW.locacao_item_id;
-
+ = quantidade
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -320,7 +345,7 @@ RETURNS TRIGGER AS $$
 DECLARE
     estoque INTEGER;
 BEGIN
-    SELECT quantidade_disponivel INTO estoque
+    SELECT quantidade INTO estoque
     FROM produtos
     WHERE id = NEW.produto_id;
 
@@ -336,7 +361,7 @@ CREATE OR REPLACE FUNCTION fn_after_insert_venda_itens()
 RETURNS TRIGGER AS $$
 BEGIN
     UPDATE produtos
-    SET quantidade_disponivel = quantidade_disponivel - NEW.quantidade
+    SET quantidade = quantidade - NEW.quantidade
     WHERE id = NEW.produto_id;
 
     UPDATE vendas
@@ -351,8 +376,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION fn_after_delete_venda_itens()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUN < 0 THEN
+        RAISE EXCEPTION 'Quantidade
 BEGIN
     UPDATE produtos
     SET estoque_atual = estoque_atual + OLD.quantidade
@@ -377,8 +402,8 @@ AS $$
 BEGIN
 
     -- impedir quantidade negativa
-    IF NEW.quantidade_disponivel < 0 THEN
-        RAISE EXCEPTION 'Quantidade disponível não pode ser negativa';
+    IF NEW.quantidade < 0 THEN
+        RAISE EXCEPTION 'Quantidade não pode ser negativa';
     END IF;
 
     -- atualizar data automaticamente
@@ -434,7 +459,7 @@ RETURNS TRIGGER AS $$
 DECLARE
     estoque INTEGER;
 BEGIN
-    SELECT estoque_atual INTO estoque
+    SELECT quantidade INTO estoque
     FROM produtos
     WHERE id = NEW.produto_id;
 
@@ -451,11 +476,11 @@ RETURNS TRIGGER AS $$
 BEGIN
     IF NEW.tipo = 'entrada' THEN
         UPDATE produtos
-        SET estoque_atual = estoque_atual + NEW.quantidade
+        SET quantidade = quantidade + NEW.quantidade
         WHERE id = NEW.produto_id;
     ELSE
         UPDATE produtos
-        SET estoque_atual = estoque_atual - NEW.quantidade
+        SET quantidade = quantidade - NEW.quantidade
         WHERE id = NEW.produto_id;
     END IF;
 

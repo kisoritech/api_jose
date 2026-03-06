@@ -34,6 +34,18 @@ router.get('/estoque', async (req, res) => {
     }
 });
 
+// GET /api/dashboard/estoque-resumido - Resumo agregado de estoque
+router.get('/estoque-resumido', async (req, res) => {
+    try {
+        const query = 'SELECT * FROM vw_dashboard_estoque';
+        const result = await pool.query(query);
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Erro ao buscar resumo de estoque:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+});
+
 // GET /api/dashboard/vendas-detalhadas - Vendas com detalhes
 router.get('/vendas-detalhadas', async (req, res) => {
     try {
