@@ -432,6 +432,82 @@ Content-Type: application/json
 
 ---
 
+### 📊 Dashboards e Relatórios (Requer Autenticação)
+
+#### Resumo do Dashboard
+```bash
+GET /api/dashboard/resumo
+Authorization: Bearer {token}
+```
+
+**Resposta** (200):
+```json
+{
+  "total_clientes": 15,
+  "total_produtos": 8,
+  "produtos_disponiveis": 6,
+  "faturamento_total": 12500.00
+}
+```
+
+#### Status de Estoque
+```bash
+GET /api/dashboard/estoque
+Authorization: Bearer {token}
+```
+
+**Resposta** (200):
+```json
+[
+  {
+    "id": 1,
+    "nome": "Notebook Dell",
+    "tipo": "venda",
+    "quantidade_total": 10,
+    "quantidade_disponivel": 3,
+    "status_estoque": "baixo"
+  }
+]
+```
+
+#### Vendas Detalhadas
+```bash
+GET /api/dashboard/vendas-detalhadas
+Authorization: Bearer {token}
+```
+
+#### Produtos Mais Vendidos
+```bash
+GET /api/dashboard/produtos-mais-vendidos
+Authorization: Bearer {token}
+```
+
+#### Locações Ativas
+```bash
+GET /api/dashboard/locacoes-ativas
+Authorization: Bearer {token}
+```
+
+#### Financeiro por Cliente
+```bash
+GET /api/dashboard/financeiro-clientes
+Authorization: Bearer {token}
+```
+
+#### Histórico de Compras por Cliente
+```bash
+GET /api/dashboard/cliente-historico/:clienteId
+Authorization: Bearer {token}
+```
+
+#### Margem de Lucro por Item
+```bash
+GET /api/dashboard/venda-itens-margem
+Authorization: Bearer {token}
+```
+
+---
+
 ## 📊 Tabela de Referência Rápida
 
 | Método | Endpoint | Autenticado | Descrição |
@@ -452,6 +528,14 @@ Content-Type: application/json
 | DELETE | `/api/produtos/:id` | ✅ | Deletar produto |
 | POST | `/api/vendas` | ✅ | Criar venda |
 | POST | `/api/locacoes` | ✅ | Criar locação |
+| GET | `/api/dashboard/resumo` | ✅ | KPIs principais |
+| GET | `/api/dashboard/estoque` | ✅ | Status de estoque |
+| GET | `/api/dashboard/vendas-detalhadas` | ✅ | Vendas detalhadas |
+| GET | `/api/dashboard/produtos-mais-vendidos` | ✅ | Ranking produtos |
+| GET | `/api/dashboard/locacoes-ativas` | ✅ | Locações ativas |
+| GET | `/api/dashboard/financeiro-clientes` | ✅ | Financeiro clientes |
+| GET | `/api/dashboard/cliente-historico/:id` | ✅ | Histórico cliente |
+| GET | `/api/dashboard/venda-itens-margem` | ✅ | Margem lucro itens |
 
 ---
 

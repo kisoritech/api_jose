@@ -320,7 +320,7 @@ RETURNS TRIGGER AS $$
 DECLARE
     estoque INTEGER;
 BEGIN
-    SELECT estoque_atual INTO estoque
+    SELECT quantidade_disponivel INTO estoque
     FROM produtos
     WHERE id = NEW.produto_id;
 
@@ -336,7 +336,7 @@ CREATE OR REPLACE FUNCTION fn_after_insert_venda_itens()
 RETURNS TRIGGER AS $$
 BEGIN
     UPDATE produtos
-    SET estoque_atual = estoque_atual - NEW.quantidade
+    SET quantidade_disponivel = quantidade_disponivel - NEW.quantidade
     WHERE id = NEW.produto_id;
 
     UPDATE vendas

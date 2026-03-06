@@ -6,11 +6,13 @@ const clienteRoutes = require('./clienteRoutes');
 const produtoRoutes = require('./produtoRoutes');
 const vendaRoutes = require('./vendaRoutes');
 const locacaoRoutes = require('./locacaoRoutes');
+const dashboardRoutes = require('./dashboardRoutes');
 
 router.use('/auth', authRoutes);
 router.use('/clientes', clienteRoutes);
 router.use('/produtos', produtoRoutes);
 router.use('/vendas', vendaRoutes);
 router.use('/locacoes', locacaoRoutes);
+router.use('/dashboard', dashboardRoutes);
 
 module.exports = router;

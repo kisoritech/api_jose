@@ -12,11 +12,7 @@ const pool = require('./src/config/database');
 const bcrypt = require('bcryptjs');
 
 async function seed() {
-  const connection = await pool.getConnection();
-  
   try {
-    await connection.beginTransaction();
-    
     console.log('🌱 Populating database with sample data...');
 
     // ========== USUARIOS ==========
@@ -31,12 +27,12 @@ async function seed() {
     const insertedUsuarios = [];
 
     for (const u of usuarios) {
-      const [result] = await connection.execute(
-        'INSERT INTO usuarios (nome, email, senha_hash, perfil) VALUES (?, ?, ?, ?)',
+      const result = await pool.query(
+        'INSERT INTO usuarios (nome, email, senha_hash, perfil) VALUES ($1, $2, $3, $4) RETURNING id',
         [u.nome, u.email, hashedPassword, u.perfil]
       );
       insertedUsuarios.push({
-        id: dbType === 'postgres' ? result.rows[0].id : result.insertId,
+        id: result.rows[0].id,
         ...u
       });
       console.log(`  ✓ Usuario: ${u.nome}`);
@@ -70,12 +66,12 @@ async function seed() {
     const insertedClientes = [];
 
     for (const c of clientes) {
-      const [result] = await connection.execute(
-        'INSERT INTO clientes (tipo_pessoa, nome, email, telefone, cidade) VALUES (?, ?, ?, ?, ?)',
+      const result = await pool.query(
+        'INSERT INTO clientes (tipo_pessoa, nome, email, telefone, cidade) VALUES ($1, $2, $3, $4, $5) RETURNING id',
         [c.tipo_pessoa, c.nome, c.email, c.telefone, c.cidade]
       );
       insertedClientes.push({
-        id: dbType === 'postgres' ? result.rows[0].id : result.insertId,
+        id: result.rows[0].id,
         ...c
       });
       console.log(`  ✓ Cliente: ${c.nome}`);
@@ -118,65 +114,65 @@ async function seed() {
         preco_venda: 3000.00,
         quantidade_disponivel: 5,
         tipo: 'ambos',
-        valor_locacao: 200.00,
-        quantidade_total: 5,
-        quantidade_disponivel: 5
+        valor_locacao: 200.00
       },
     ];
 
     const insertedProdutos = [];
 
     for (const p of produtos) {
-      const [result] = await connection.execute(
+      const result = await pool.query(
         `INSERT INTO produtos 
-         (nome, descricao, codigo_barras, preco_custo, preco_venda, quantidade_disponivel, tipo, valor_locacao, quantidade_total)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [p.nome, p.descricao, p.codigo_barras, p.preco_custo, p.preco_venda, p.quantidade_disponivel, p.tipo, p.valor_locacao || null, p.quantidade_total || p.quantidade_disponivel || 0]
+         (nome, descricao, codigo_barras, preco_custo, preco_venda, quantidade_disponivel, tipo, valor_locacao, criado_por)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+        [p.nome, p.descricao, p.codigo_barras, p.preco_custo, p.preco_venda, p.quantidade_disponivel, p.tipo, p.valor_locacao || null, insertedUsuarios[0].id]
       );
       insertedProdutos.push({
-        id: dbType === 'postgres' ? result.rows[0].id : result.insertId,
+        id: result.rows[0].id,
         ...p
       });
       console.log(`  ✓ Produto: ${p.nome}`);
     }
 
-    // ========== VENDAS ==========
-    const [vendaResult] = await connection.execute(
+    // ========== VENDA ==========
+    const vendaResult = await pool.query(
       `INSERT INTO vendas (usuario_id, cliente_id, valor_total, forma_pagamento, frete_valor)
-       VALUES (?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
       [insertedUsuarios[2].id, insertedClientes[0].id, 489.90, 'pix', 10.00]
     );
-    const vendaId = dbType === 'postgres' ? vendaResult.rows[0].id : vendaResult.insertId;
+    const vendaId = vendaResult.rows[0].id;
 
     // ========== VENDA_ITENS ==========
-    const [itemResult1] = await connection.execute(
+    await pool.query(
       `INSERT INTO venda_itens (venda_id, produto_id, quantidade, valor_unitario)
-       VALUES (?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4)`,
       [vendaId, insertedProdutos[1].id, 3, 89.90]
     );
 
-    const [itemResult2] = await connection.execute(
+    await pool.query(
       `INSERT INTO venda_itens (venda_id, produto_id, quantidade, valor_unitario)
-       VALUES (?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4)`,
       [vendaId, insertedProdutos[2].id, 1, 399.90]
     );
 
     console.log(`  ✓ Venda: ID ${vendaId} criada com 2 itens`);
 
-    // ========== LOCACOES ==========
-    const dataInicio = new Date().toISOString();
-    const dataFim = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 dias
-
-    const [locacaoResult] = await connection.execute(
-      `INSERT INTO locacoes (produto_id, usuario_id, cliente_id, quantidade, valor_unitario, data_inicio, data_prevista_devolucao)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [insertedProdutos[3].id, insertedUsuarios[1].id, insertedClientes[1].id, 1, 200.00, dataInicio, dataFim]
+    // ========== LOCACAO ==========
+    const locacaoResult = await pool.query(
+      `INSERT INTO locacoes (cliente_id, produto_id, quantidade, valor_total, data_inicio, quantidade_dias, forma_pagamento)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [insertedClientes[1].id, insertedProdutos[3].id, 1, 6000.00, '2026-03-06', 30, 'pix']
     );
-    const locacaoId = dbType === 'postgres' ? locacaoResult.rows[0].id : locacaoResult.insertId;
+    const locacaoId = locacaoResult.rows[0].id;
+
+    await pool.query(
+      `INSERT INTO locacao_itens (locacao_id, produto_id, quantidade, valor_diario)
+       VALUES ($1, $2, $3, $4)`,
+      [locacaoId, insertedProdutos[3].id, 1, 200.00]
+    );
 
     console.log(`  ✓ Locação: ID ${locacaoId} criada`);
 
-    await connection.commit();
     console.log('\n✅ Database populated successfully!');
     console.log('\n📊 Summary:');
     console.log(`  - ${insertedUsuarios.length} usuários criados`);
@@ -189,12 +185,10 @@ async function seed() {
     console.log(`  Senha: 123456`);
 
   } catch (error) {
-    await connection.rollback();
-    console.error('❌ Error seeding database:', error.message);
+    console.error('❌ Error seeding database:', error);
     process.exit(1);
   } finally {
-    connection.release();
-    process.exit(0);
+    await pool.end();
   }
 }
 
