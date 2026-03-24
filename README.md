@@ -790,6 +790,38 @@ Observação: a UI destina-se a testes e desenvolvimento; não a exponha em prod
 
 ---
 
+## 💻 Exemplo de Integração Frontend
+
+Abaixo um exemplo de como consumir a listagem de produtos utilizando JavaScript (Fetch API), acessando corretamente o campo `preco_venda` retornado pelo banco de dados.
+
+```javascript
+async function listarProdutos() {
+  try {
+    const token = localStorage.getItem('token'); // Token JWT salvo no login
+    const response = await fetch('http://localhost:3000/api/produtos', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const produtos = await response.json();
+
+    produtos.forEach(produto => {
+      console.log(`Produto: ${produto.nome}`);
+      // Importante: A API retorna 'preco_venda', não 'preco'
+      console.log(`Preço: R$ ${Number(produto.preco_venda).toFixed(2)}`);
+      console.log(`Estoque: ${produto.estoque}`);
+    });
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+  }
+}
+```
+
+---
+
 ## ✔️ Checklist Pronto para Usar
 
 ### Desenvolvimento Local

@@ -5,7 +5,7 @@ class ProdutoController {
   async listar(req, res, next) {
     try {
       const [rows] = await pool.execute(
-        'SELECT id, nome, descricao, preco_venda AS preco, quantidade AS estoque, tipo, codigo_barras FROM produtos'
+        'SELECT id, nome, descricao, preco_venda, quantidade AS estoque, tipo, codigo_barras FROM produtos'
       );
       res.json(rows);
     } catch (err) { next(err); }
@@ -15,7 +15,7 @@ class ProdutoController {
     try {
       const { id } = req.params;
       const [rows] = await pool.execute(
-        'SELECT id, nome, descricao, preco_venda AS preco, quantidade AS estoque, tipo, codigo_barras FROM produtos WHERE id = ?',
+        'SELECT id, nome, descricao, preco_venda, quantidade AS estoque, tipo, codigo_barras FROM produtos WHERE id = ?',
         [id]
       );
       if (!rows[0]) return res.status(404).json({ error: 'Produto não encontrado' });
