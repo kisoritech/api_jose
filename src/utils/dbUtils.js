@@ -1,12 +1,11 @@
-// helpers for working with results returned by our database abstraction
-
+/**
+ * Normaliza a obtenção do ID inserido, funcionando tanto para
+ * drivers MySQL (result.insertId) quanto PostgreSQL adaptado (result.insertId via wrapper)
+ */
 function getInsertedId(result) {
-  if (!result) return null;
-  if (result.insertId !== undefined) return result.insertId;
-  if (result.rows && result.rows[0] && result.rows[0].id !== undefined) return result.rows[0].id;
+  // Se o wrapper do database.js retornar um objeto meta com insertId
+  if (result && result.insertId) return result.insertId;
   return null;
 }
 
-module.exports = {
-  getInsertedId,
-};
+module.exports = { getInsertedId };

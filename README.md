@@ -12,6 +12,39 @@ Aplicação profissional pronta para produção com autenticação JWT, gestão 
 
 ---
 
+## ✨ Atualizações Técnicas Recentes
+
+As seguintes melhorias foram implementadas na arquitetura para garantir robustez em produção:
+
+1.  **Adaptação para PostgreSQL**:
+    *   Migração completa do schema para PostgreSQL.
+    *   Implementação de um **Wrapper de Compatibilidade** em `src/config/database.js` que traduz queries estilo MySQL (`?`) para PostgreSQL (`$1`, `$2`), permitindo suporte híbrido.
+
+2.  **Transações ACID em Vendas**:
+    *   O `VendaController` agora utiliza transações de banco de dados (`BEGIN`, `COMMIT`, `ROLLBACK`).
+    *   Isso garante que o estoque só seja baixado se a venda for registrada com sucesso, evitando inconsistências.
+
+3.  **UI de Testes Aprimorada**:
+    *   Interface visual (`public/index.html`) atualizada com painel dedicado de vendas.
+    *   Tratamento de tipos (conversão automática de Strings para Numbers) no frontend para evitar erros de validação no banco.
+
+## 🛒 Arquitetura: Fluxo de Processamento de Vendas
+
+O registro de vendas (`POST /api/vendas`) segue um fluxo rigoroso para garantir integridade:
+
+1.  **Entrada**: A API recebe o JSON com `cliente_id`, `itens` e `forma_pagamento`.
+2.  **Transação (Start)**: O Controller abre uma transação exclusiva (`BEGIN`) no banco.
+3.  **Registro**: 
+    *   Insere o cabeçalho na tabela `vendas` (status 'concluida').
+    *   Itera e insere cada item na tabela `venda_itens`.
+4.  **Automação (Triggers)**:
+    *   Ao inserir um item, triggers do banco verificam o estoque disponível.
+    *   Se houver estoque, a quantidade é reduzida automaticamente na tabela `produtos`.
+    *   O valor total da venda é recalculado e atualizado na tabela pai `vendas`.
+5.  **Validação**: Se qualquer passo falhar (ex: estoque insuficiente), a transação sofre `ROLLBACK` e nada é salvo. Caso contrário, `COMMIT`.
+
+---
+
 ## 🖥️ Instalação Local
 
 ### Pré-requisitos

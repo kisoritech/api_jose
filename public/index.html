@@ -23,7 +23,7 @@
   <div class="section">
     <strong>Configurações</strong>
     <label>Base URL
-      <input id="baseUrl" placeholder="http://localhost:3000" value=" https://api-jose-jhbt.onrender.com" />
+      <input id="baseUrl" placeholder="http://localhost:3000" value="https://api-jose-jhbt.onrender.com" />
     </label>
   </div>
 
@@ -66,6 +66,17 @@
         </select>
       </label>
       <button id="btnRegister">Registrar</button>
+    </div>
+
+    <div class="section" style="margin-top:12px;">
+      <strong>Simulação de Venda (/api/vendas)</strong>
+      <div class="row">
+        <div class="col"><label>ID Cliente <input id="saleCliente" placeholder="1" type="number" /></label></div>
+        <div class="col"><label>ID Produto <input id="saleProduto" placeholder="1" type="number" /></label></div>
+        <div class="col"><label>Qtd <input id="saleQtde" placeholder="2" type="number" /></label></div>
+        <div class="col"><label>Valor Unit. <input id="saleValor" placeholder="100.00" step="0.01" type="number" /></label></div>
+      </div>
+      <button id="btnCreateSale">Realizar Venda</button>
     </div>
 
     <label>Token

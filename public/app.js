@@ -39,7 +39,7 @@ document.getElementById('btnCopy').addEventListener('click', async ()=>{
 document.getElementById('btnClear').addEventListener('click', ()=> setToken(null));
 
 async function request(path, opts={}){
-  const url = (baseUrlInput.value||'').replace(/\/$/, '') + path;
+  const url = (baseUrlInput.value||'').trim().replace(/\/$/, '') + path;
   const headers = opts.headers || {};
   if(opts.auth !== false){
     const t = getToken();
@@ -118,4 +118,35 @@ document.getElementById('btnSendNoAuth').addEventListener('click', async ()=>{
   document.getElementById('response').textContent = JSON.stringify(r, null, 2);
   if(r.ok) showStatus('Requisição sem auth sucedida','success');
   else showStatus('Erro na requisição: '+r.status,'error');
+});
+
+document.getElementById('btnCreateSale').addEventListener('click', async ()=>{
+  // 1. Captura e validação dos dados
+  const cliente_id = parseInt(document.getElementById('saleCliente').value);
+  const produto_id = parseInt(document.getElementById('saleProduto').value);
+  const quantidade = parseInt(document.getElementById('saleQtde').value);
+  const valor_unitario = parseFloat(document.getElementById('saleValor').value);
+
+  // Verifica se temos números válidos (evita enviar NaN que causa erro 500 no banco)
+  if(!cliente_id || !produto_id || !quantidade || isNaN(valor_unitario)) {
+    return alert('Por favor, preencha ID do Cliente, Produto, Quantidade e Valor corretamente.');
+  }
+
+  // 2. Construção do Payload (Conforme TESTING_GUIDE.md)
+  const body = {
+    cliente_id: cliente_id,
+    forma_pagamento: 'pix',
+    frete_valor: 0.00, // Campo opcional mas recomendado para evitar nulos
+    itens: [{
+      produto_id: produto_id,
+      quantidade: quantidade,
+      valor_unitario: valor_unitario
+    }]
+  };
+
+  const r = await request('/api/vendas', {method:'POST', body, auth:true});
+  document.getElementById('response').textContent = JSON.stringify(r, null, 2);
+  
+  if(r.ok) showStatus('Venda registrada com sucesso!', 'success');
+  else showStatus('Erro ao registrar venda: ' + (r.body?.error || r.status), 'error');
 });
