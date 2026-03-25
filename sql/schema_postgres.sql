@@ -342,14 +342,14 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION fn_before_insert_venda_itens()
 RETURNS TRIGGER AS $$
 DECLARE
-    estoque INTEGER;
+    qtd_disponivel INTEGER;
 BEGIN
-    SELECT quantidade INTO estoque
+    SELECT quantidade INTO qtd_disponivel
     FROM produtos
     WHERE id = NEW.produto_id;
 
-    IF estoque < NEW.quantidade THEN
-        RAISE EXCEPTION 'Estoque insuficiente para venda.';
+    IF qtd_disponivel IS NULL OR qtd_disponivel < NEW.quantidade THEN
+        RAISE EXCEPTION 'Estoque insuficiente. Disponível: %, Solicitado: %', COALESCE(qtd_disponivel, 0), NEW.quantidade;
     END IF;
 
     RETURN NEW;
@@ -359,10 +359,12 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION fn_after_insert_venda_itens()
 RETURNS TRIGGER AS $$
 BEGIN
+    -- Baixa o estoque do produto
     UPDATE produtos
     SET quantidade = quantidade - NEW.quantidade
     WHERE id = NEW.produto_id;
 
+    -- Recalcula o valor total da venda
     UPDATE vendas
     SET valor_total = (
         SELECT COALESCE(SUM(valor_total),0)
