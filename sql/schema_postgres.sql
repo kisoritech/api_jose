@@ -319,7 +319,7 @@ GROUP BY p.id, p.nome;
 
 CREATE OR REPLACE VIEW vw_cliente_historico AS
 SELECT 
-    c.id AS cliente_i
+    c.id AS cliente_id,
     c.nome,
     v.id AS venda_id,
     v.criado_em,
@@ -335,7 +335,6 @@ BEGIN
     UPDATE locacao_itens
     SET data_prevista_devolucao = NEW.nova_data
     WHERE id = NEW.locacao_item_id;
- = quantidade
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -376,11 +375,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUN < 0 THEN
-        RAISE EXCEPTION 'Quantidade
+CREATE OR REPLACE FUNCTION fn_after_delete_venda_itens()
+RETURNS TRIGGER AS $$
 BEGIN
     UPDATE produtos
-    SET estoque_atual = estoque_atual + OLD.quantidade
+    SET quantidade = quantidade + OLD.quantidade
     WHERE id = OLD.produto_id;
 
     UPDATE vendas
