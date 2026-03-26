@@ -18,6 +18,9 @@ CREATE TYPE tipo_financeiro_enum AS ENUM ('debito','credito');
 CREATE TYPE origem_financeiro_enum AS ENUM ('venda','locacao','ajuste');
 CREATE TYPE status_financeiro_enum AS ENUM ('pendente','pago','cancelado');
 
+-- Remover tipos redundantes para evitar confusão no código
+-- (perfil_usuario_enum e tipo_usuario_enum foram removidos pois a tabela usa perfil_usuario)
+
 CREATE TABLE usuarios (
     id BIGSERIAL PRIMARY KEY,
     nome VARCHAR(150) NOT NULL,
@@ -162,8 +165,8 @@ CREATE TABLE locacao_itens (
     locacao_id BIGINT NOT NULL REFERENCES locacoes(id) ON DELETE CASCADE,
     produto_id BIGINT NOT NULL REFERENCES produtos(id),
     quantidade INT NOT NULL,
-    valor_unitario NUMERIC(10,2) NOT NULL,
-    valor_total NUMERIC(10,2) NOT NULL,
+    valor_unitario NUMERIC(12,2) NOT NULL,
+    valor_total NUMERIC(14,2) NOT NULL,
     data_prevista_devolucao DATE NOT NULL,
     status VARCHAR(20) DEFAULT 'alugado'
 );
@@ -396,24 +399,19 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION fn_before_update_produtos()
+-- Função genérica para atualização de timestamp atualizado_em
+CREATE OR REPLACE FUNCTION fn_atualiza_timestamp()
 RETURNS trigger
-LANGUAGE plpgsql
-AS $$
+AS $function$
 BEGIN
-
-    -- impedir quantidade negativa
-    IF NEW.quantidade < 0 THEN
+    -- Se for a tabela produtos, valida quantidade
+    IF TG_TABLE_NAME = 'produtos' AND NEW.quantidade < 0 THEN
         RAISE EXCEPTION 'Quantidade não pode ser negativa';
     END IF;
-
-    -- atualizar data automaticamente
     NEW.atualizado_em = CURRENT_TIMESTAMP;
-
     RETURN NEW;
-
 END;
-$$;
+$function$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION fn_before_delete_vendas()
 RETURNS TRIGGER AS $$
@@ -516,10 +514,18 @@ BEFORE DELETE ON vendas
 FOR EACH ROW
 EXECUTE FUNCTION fn_before_delete_vendas();
 
+-- Triggers de timestamp para melhor rastreabilidade
+CREATE TRIGGER trg_before_update_usuarios
+BEFORE UPDATE ON usuarios
+FOR EACH ROW EXECUTE FUNCTION fn_atualiza_timestamp();
+
+CREATE TRIGGER trg_before_update_clientes
+BEFORE UPDATE ON clientes
+FOR EACH ROW EXECUTE FUNCTION fn_atualiza_timestamp();
+
 CREATE TRIGGER trg_before_update_produtos
 BEFORE UPDATE ON produtos
-FOR EACH ROW
-EXECUTE FUNCTION fn_before_update_produtos();
+FOR EACH ROW EXECUTE FUNCTION fn_atualiza_timestamp();
 
 CREATE TRIGGER trg_after_delete_venda_itens
 AFTER DELETE ON venda_itens
