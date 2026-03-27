@@ -1,10 +1,18 @@
 /**
- * Normaliza a obtenção do ID inserido, funcionando tanto para
- * drivers MySQL (result.insertId) quanto PostgreSQL adaptado (result.insertId via wrapper)
+ * Normaliza a obtencao do ID inserido, funcionando tanto para
+ * drivers MySQL (result.insertId) quanto para wrappers em PostgreSQL.
  */
 function getInsertedId(result) {
-  // Se o wrapper do database.js retornar um objeto meta com insertId
-  if (result && result.insertId) return result.insertId;
+  if (!result) return null;
+
+  if (result.insertId) return result.insertId;
+
+  if (Array.isArray(result) && result[0] && result[0].id) {
+    return result[0].id;
+  }
+
+  if (result.id) return result.id;
+
   return null;
 }
 

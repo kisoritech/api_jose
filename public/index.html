@@ -3,32 +3,39 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>API Test UI - Auth & Requests</title>
+  <title>API Test UI</title>
   <style>
-    body{font-family:Arial,Helvetica,sans-serif;margin:20px;color:#222}
-    h1{font-size:1.2rem}
+    body{font-family:Arial,Helvetica,sans-serif;margin:20px;color:#222;background:#fafafa}
+    h1,h2{margin:0 0 10px}
+    h1{font-size:1.4rem}
+    h2{font-size:1rem}
     label{display:block;margin-top:8px}
-    input,select,textarea{width:100%;padding:8px;margin-top:4px;border:1px solid #ccc;border-radius:4px}
-    .row{display:flex;gap:10px}
-    .col{flex:1}
-    button{margin-top:10px;padding:8px 12px}
+    input,select,textarea{width:100%;padding:8px;margin-top:4px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .col{flex:1;min-width:180px}
+    button{margin-top:10px;padding:8px 12px;border:0;border-radius:4px;background:#1769d1;color:#fff;cursor:pointer}
+    button.secondary{background:#666}
+    button.ghost{background:#e9eef8;color:#17407a}
     .token-box{background:#f5f5f5;padding:8px;border-radius:4px;word-break:break-all}
-    .section{border:1px solid #eee;padding:12px;border-radius:6px;margin-bottom:12px}
+    .section{border:1px solid #e8e8e8;padding:12px;border-radius:8px;margin-bottom:12px;background:#fff}
     small{color:#666}
+    pre{background:#fafafa;padding:8px;border:1px solid #eee;min-height:120px;white-space:pre-wrap}
+    .quick-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
   </style>
 </head>
 <body>
-  <h1>API Test UI — Login / Requests</h1>
+  <h1>API Test UI</h1>
 
   <div class="section">
-    <strong>Configurações</strong>
+    <h2>Configuracoes</h2>
     <label>Base URL
-      <input id="baseUrl" placeholder="http://localhost:3000" value="https://api-jose-jhbt.onrender.com" />
+      <input id="baseUrl" placeholder="http://localhost:3000" value="`https://api-jose-jhbt.onrender.com" />
     </label>
+    <small>Use a URL local em desenvolvimento ou altere para a URL publicada quando precisar testar deploy.</small>
   </div>
 
   <div class="section">
-    <strong>Autenticação</strong>
+    <h2>Autenticacao</h2>
     <div class="row">
       <div class="col">
         <label>Email
@@ -42,15 +49,13 @@
       </div>
     </div>
     <div class="row">
-      <div class="col">
-        <button id="btnLogin">Login</button>
-      </div>
+      <button id="btnLogin">Login</button>
     </div>
 
     <div class="section" style="margin-top:12px;">
-      <strong>Registro de usuário</strong>
+      <h2>Registro de usuario</h2>
       <label>Nome
-        <input id="regNome" placeholder="João Silva" />
+        <input id="regNome" placeholder="Joao Silva" />
       </label>
       <label>Email
         <input id="regEmail" placeholder="teste@example.com" />
@@ -68,33 +73,73 @@
       <button id="btnRegister">Registrar</button>
     </div>
 
-    <div class="section" style="margin-top:12px;">
-      <strong>Simulação de Venda (/api/vendas)</strong>
-      <div class="row">
-        <div class="col"><label>ID Cliente <input id="saleCliente" placeholder="1" type="number" /></label></div>
-        <div class="col"><label>ID Produto <input id="saleProduto" placeholder="1" type="number" /></label></div>
-        <div class="col"><label>Qtd <input id="saleQtde" placeholder="2" type="number" /></label></div>
-        <div class="col"><label>Valor Unit. <input id="saleValor" placeholder="100.00" step="0.01" type="number" /></label></div>
-      </div>
-      <button id="btnCreateSale">Realizar Venda</button>
-    </div>
-
     <label>Token
       <input id="tokenInput" class="token-box" readonly placeholder="Nenhum token" />
     </label>
     <div class="row">
       <button id="btnCopy">Copiar token</button>
-      <button id="btnClear">Limpar token</button>
+      <button id="btnClear" class="secondary">Limpar token</button>
     </div>
-    <small>Dica: após o login ou registro, o token será salvo em <em>localStorage</em> e usado automaticamente nas requisições.</small>
+    <small>Apos o login ou registro, o token fica salvo no localStorage e sera usado automaticamente nas requisicoes autenticadas.</small>
     <div id="statusMessage" style="margin-top:8px;font-weight:bold"></div>
   </div>
 
   <div class="section">
-    <strong>Construtor de Requisições</strong>
+    <h2>Venda Rapida</h2>
+    <div class="row">
+      <div class="col"><label>ID Cliente <input id="saleCliente" placeholder="2" type="number" /></label></div>
+      <div class="col"><label>ID Produto <input id="saleProduto" placeholder="1" type="number" /></label></div>
+      <div class="col"><label>Qtd <input id="saleQtde" placeholder="2" type="number" /></label></div>
+      <div class="col"><label>Valor Unit. <input id="saleValor" placeholder="10.50" step="0.01" type="number" /></label></div>
+      <div class="col">
+        <label>Pagamento
+          <select id="salePagamento">
+            <option value="dinheiro">dinheiro</option>
+            <option value="pix" selected>pix</option>
+            <option value="cartao">cartao</option>
+            <option value="boleto">boleto</option>
+          </select>
+        </label>
+      </div>
+      <div class="col"><label>Frete <input id="saleFrete" placeholder="0.00" step="0.01" type="number" /></label></div>
+    </div>
+    <button id="btnCreateSale">Realizar Venda</button>
+  </div>
+
+  <div class="section">
+    <h2>Locacao Rapida</h2>
+    <div class="row">
+      <div class="col"><label>ID Cliente <input id="rentCliente" placeholder="2" type="number" /></label></div>
+      <div class="col"><label>ID Produto <input id="rentProduto" placeholder="4" type="number" /></label></div>
+      <div class="col"><label>Qtd <input id="rentQtde" placeholder="1" type="number" /></label></div>
+      <div class="col"><label>Valor Unit. <input id="rentValor" placeholder="200.00" step="0.01" type="number" /></label></div>
+      <div class="col"><label>Data Inicio <input id="rentInicio" type="datetime-local" /></label></div>
+      <div class="col"><label>Data Prevista <input id="rentFim" type="datetime-local" /></label></div>
+    </div>
+    <button id="btnCreateRent">Realizar Locacao</button>
+  </div>
+
+  <div class="section">
+    <h2>Atalhos de Consulta</h2>
+    <div class="quick-grid">
+      <button class="ghost quick-action" data-endpoint="/health" data-auth="false">Health</button>
+      <button class="ghost quick-action" data-endpoint="/api/clientes">Clientes</button>
+      <button class="ghost quick-action" data-endpoint="/api/produtos">Produtos</button>
+      <button class="ghost quick-action" data-endpoint="/api/vendas">Vendas</button>
+      <button class="ghost quick-action" data-endpoint="/api/locacoes">Locacoes</button>
+      <button class="ghost quick-action" data-endpoint="/api/dashboard/resumo">Dashboard Resumo</button>
+      <button class="ghost quick-action" data-endpoint="/api/dashboard/movimentacao-geral">Movimentacao Geral</button>
+      <button class="ghost quick-action" data-endpoint="/api/dashboard/resumo-operacional">Resumo Operacional</button>
+      <button class="ghost quick-action" data-endpoint="/api/dashboard/financeiro-origens">Financeiro por Origem</button>
+      <button class="ghost quick-action" data-endpoint="/api/dashboard/auditoria-integracao">Auditoria Integracao</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Construtor de Requisicoes</h2>
     <div class="row">
       <div style="width:140px">
-        <label>Método
+        <label>Metodo
           <select id="method">
             <option>GET</option>
             <option>POST</option>
@@ -104,23 +149,23 @@
         </label>
       </div>
       <div class="col">
-        <label>Endpoint (path)
+        <label>Endpoint
           <input id="endpoint" placeholder="/api/produtos" />
         </label>
       </div>
     </div>
 
     <label>Body (JSON)
-      <textarea id="body" rows="6" placeholder='{"nome":"Produto X","preco_venda":100.0}'></textarea>
+      <textarea id="body" rows="8" placeholder='{"nome":"Produto X","preco_venda":100.0}'></textarea>
     </label>
 
     <div class="row">
       <button id="btnSend">Enviar</button>
-      <button id="btnSendNoAuth">Enviar (sem token)</button>
+      <button id="btnSendNoAuth" class="secondary">Enviar sem token</button>
     </div>
 
     <label>Resposta</label>
-    <pre id="response" style="background:#fafafa;padding:8px;border:1px solid #eee;min-height:120px;white-space:pre-wrap"></pre>
+    <pre id="response"></pre>
   </div>
 
   <script src="/app.js"></script>

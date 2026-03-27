@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const path = require('path');
 
 const routes = require('./routes');
+const legacyRoutes = require('./routes/legacyRoutes');
 const errorMiddleware = require('./middlewares/errorMiddleware');
 
 const app = express();
@@ -43,6 +44,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Rotas
+app.use('/', legacyRoutes);
 app.use('/api', routes);
 
 // rota raiz para desenvolvimento: serve index.html se existir

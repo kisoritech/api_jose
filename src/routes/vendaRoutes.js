@@ -1,11 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const VendaController = require('../controllers/VendaController');
-const authMiddleware = require('../middlewares/authMiddleware'); // Assumindo que exista conforme README
+const authMiddleware = require('../middlewares/authMiddleware');
 
-// Rota para criar venda
-// POST /api/vendas
-// Requer autenticação para pegar o usuario_id
+router.get('/', authMiddleware, VendaController.listar);
+router.get('/:id', authMiddleware, VendaController.buscar);
 router.post('/', authMiddleware, VendaController.criar);
 
 module.exports = router;

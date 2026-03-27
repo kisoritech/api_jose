@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-// Configuração da conexão
+// Configuracao da conexao
 const dbConfig = process.env.DATABASE_URL
   ? {
       connectionString: process.env.DATABASE_URL,
@@ -18,37 +18,66 @@ const dbConfig = process.env.DATABASE_URL
 
 const pool = new Pool(dbConfig);
 
-// Compatibilidade com código legado de MySQL
-// No PostgreSQL (pg), usamos .connect() em vez de .getConnection()
+function normalizeQuery(text) {
+  let i = 1;
+  return text.replace(/\?/g, () => `$${i++}`);
+}
+
+function ensureReturningId(text) {
+  if (/^\s*INSERT\s+INTO/i.test(text) && !/RETURNING\s+id/i.test(text)) {
+    return `${text} RETURNING id`;
+  }
+
+  return text;
+}
+
+function formatCompatResult(res) {
+  const meta = {
+    affectedRows: res.rowCount,
+    insertId: res.rows.length > 0 && res.rows[0].id ? res.rows[0].id : null
+  };
+
+  return [res.rows, meta];
+}
+
+function augmentClient(client) {
+  if (client.execute) return client;
+
+  client.execute = async function(text, params = []) {
+    const pgText = ensureReturningId(normalizeQuery(text));
+    const res = await client.query(pgText, params);
+    return formatCompatResult(res);
+  };
+
+  client.beginTransaction = async function() {
+    await client.query('BEGIN');
+  };
+
+  client.commit = async function() {
+    await client.query('COMMIT');
+  };
+
+  client.rollback = async function() {
+    await client.query('ROLLBACK');
+  };
+
+  return client;
+}
+
+// Compatibilidade com codigo legado de MySQL
 pool.getConnection = async function() {
-  return await this.connect();
+  const client = await this.connect();
+  return augmentClient(client);
 };
 
-// Adiciona método 'execute' para compatibilidade com código estilo MySQL
-// Converte automaticamente '?' para '$1', '$2', etc.
-pool.execute = async function(text, params) {
-  // 1. Converter ? para $1, $2, etc.
-  let i = 1;
-  let pgText = text.replace(/\?/g, () => `$${i++}`);
-
-  // 2. Se for INSERT e não tiver RETURNING id, adiciona automaticamente (para PostgreSQL)
-  if (/^\s*INSERT\s+INTO/i.test(pgText) && !/RETURNING\s+id/i.test(pgText)) {
-    pgText += ' RETURNING id';
-  }
+// Adiciona metodo 'execute' para compatibilidade com codigo estilo MySQL
+pool.execute = async function(text, params = []) {
+  const pgText = ensureReturningId(normalizeQuery(text));
 
   const client = await pool.connect();
   try {
     const res = await client.query(pgText, params);
-    
-    // Retorna formato [rows, fields] similar ao driver mysql2
-    // rows: array de resultados
-    // fields/meta: objeto com insertId se disponível
-    const meta = { 
-      affectedRows: res.rowCount,
-      insertId: res.rows.length > 0 && res.rows[0].id ? res.rows[0].id : null 
-    };
-    
-    return [res.rows, meta];
+    return formatCompatResult(res);
   } finally {
     client.release();
   }

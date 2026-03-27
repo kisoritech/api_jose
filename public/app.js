@@ -1,11 +1,11 @@
 const baseUrlInput = document.getElementById('baseUrl');
 const tokenKey = 'api_test_ui_token';
 
-function setToken(t){
-  const input=document.getElementById('tokenInput');
-  if(t){
-    localStorage.setItem(tokenKey, t);
-    input.value = t;
+function setToken(token) {
+  const input = document.getElementById('tokenInput');
+  if (token) {
+    localStorage.setItem(tokenKey, token);
+    input.value = token;
     showStatus('Token armazenado', 'success');
   } else {
     localStorage.removeItem(tokenKey);
@@ -14,139 +14,259 @@ function setToken(t){
   }
 }
 
-function getToken(){
+function getToken() {
   return localStorage.getItem(tokenKey);
 }
 
-function showStatus(msg,type='info'){
-  const el=document.getElementById('statusMessage');
-  el.textContent=msg;
-  if(type==='error') el.style.color='red';
-  else if(type==='success') el.style.color='green';
-  else el.style.color='#222';
+function showStatus(message, type = 'info') {
+  const el = document.getElementById('statusMessage');
+  el.textContent = message;
+  if (type === 'error') el.style.color = 'red';
+  else if (type === 'success') el.style.color = 'green';
+  else el.style.color = '#222';
 }
 
-// Inicializa token se existir
-if(getToken()) setToken(getToken());
+function setResponse(data) {
+  document.getElementById('response').textContent = typeof data === 'string'
+    ? data
+    : JSON.stringify(data, null, 2);
+}
 
-document.getElementById('btnCopy').addEventListener('click', async ()=>{
-  const t = getToken();
-  if(!t) return alert('Nenhum token para copiar');
-  await navigator.clipboard.writeText(t);
-  showStatus('Token copiado!', 'success');
-});
+function parseJsonInput(value) {
+  const body = value.trim();
+  if (!body) return null;
+  return JSON.parse(body);
+}
 
-document.getElementById('btnClear').addEventListener('click', ()=> setToken(null));
+function toIsoFromLocalInput(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
 
-async function request(path, opts={}){
-  const url = (baseUrlInput.value||'').trim().replace(/\/$/, '') + path;
+async function request(path, opts = {}) {
+  const url = (baseUrlInput.value || '').trim().replace(/\/$/, '') + path;
   const headers = opts.headers || {};
-  if(opts.auth !== false){
-    const t = getToken();
-    if(t) headers['Authorization'] = 'Bearer '+t;
+
+  if (opts.auth !== false) {
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
   }
-  if(opts.body && typeof opts.body === 'object'){
+
+  if (opts.body && typeof opts.body === 'object') {
     headers['Content-Type'] = 'application/json';
   }
-  try{
-    const res = await fetch(url, {method: opts.method||'GET', headers, body: opts.body?JSON.stringify(opts.body):undefined});
+
+  try {
+    const res = await fetch(url, {
+      method: opts.method || 'GET',
+      headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined
+    });
+
     const text = await res.text();
     let parsed = text;
-    try{ parsed = JSON.parse(text); }
-    catch(e){}
-    return {status: res.status, ok: res.ok, body: parsed};
-  }catch(err){
-    return {error: err.message};
+
+    try {
+      parsed = JSON.parse(text);
+    } catch (e) {
+      // Resposta nao veio em JSON.
+    }
+
+    return { status: res.status, ok: res.ok, body: parsed };
+  } catch (err) {
+    return { error: err.message };
   }
 }
 
-document.getElementById('btnLogin').addEventListener('click', async ()=>{
-  const email = document.getElementById('email').value;
-  const password = document.getElementById('password').value;
-  if(!email || !password) return alert('Preencha email e senha');
-  const r = await request('/api/auth/login', {method:'POST', body:{email,password}, auth:false});
-  if(r.error){
-    showStatus(r.error,'error');
-    document.getElementById('response').textContent = r.error;
-    return
-  }
-  if(r.status===200 && r.body && r.body.token){
-    setToken(r.body.token);
-    showStatus('Login bem sucedido','success');
-    document.getElementById('response').textContent = JSON.stringify(r.body, null, 2);
-  } else {
-    showStatus('Falha no login','error');
-    document.getElementById('response').textContent = JSON.stringify(r, null, 2);
-  }
+if (getToken()) setToken(getToken());
+
+document.getElementById('btnCopy').addEventListener('click', async () => {
+  const token = getToken();
+  if (!token) return alert('Nenhum token para copiar');
+  await navigator.clipboard.writeText(token);
+  showStatus('Token copiado', 'success');
 });
 
-document.getElementById('btnRegister').addEventListener('click', async ()=>{
+document.getElementById('btnClear').addEventListener('click', () => setToken(null));
+
+document.getElementById('btnLogin').addEventListener('click', async () => {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+
+  if (!email || !password) {
+    return alert('Preencha email e senha');
+  }
+
+  const response = await request('/api/auth/login', {
+    method: 'POST',
+    body: { email, password },
+    auth: false
+  });
+
+  if (response.error) {
+    showStatus(response.error, 'error');
+    return setResponse(response.error);
+  }
+
+  if (response.ok && response.body?.token) {
+    setToken(response.body.token);
+    showStatus('Login bem sucedido', 'success');
+  } else {
+    showStatus('Falha no login', 'error');
+  }
+
+  setResponse(response);
+});
+
+document.getElementById('btnRegister').addEventListener('click', async () => {
   const nome = document.getElementById('regNome').value;
   const email = document.getElementById('regEmail').value;
   const password = document.getElementById('regPassword').value;
   const perfil = document.getElementById('regPerfil').value;
-  if(!nome||!email||!password) return alert('Preencha nome, email e senha');
-  const r = await request('/api/auth/register', {method:'POST', body:{nome,email,password,perfil}, auth:false});
-  document.getElementById('response').textContent = JSON.stringify(r, null, 2);
-  if(r.status===201 && r.body && r.body.token){ 
-    setToken(r.body.token);
-    showStatus('Registro realizado e token recebido','success');
-  } else if(r.status && r.status!==201){
-    showStatus('Falha no registro','error');
+
+  if (!nome || !email || !password) {
+    return alert('Preencha nome, email e senha');
   }
+
+  const response = await request('/api/auth/register', {
+    method: 'POST',
+    body: { nome, email, password, perfil },
+    auth: false
+  });
+
+  if (response.ok && response.body?.token) {
+    setToken(response.body.token);
+    showStatus('Registro realizado', 'success');
+  } else if (response.error) {
+    showStatus(response.error, 'error');
+  } else {
+    showStatus('Falha no registro', 'error');
+  }
+
+  setResponse(response);
 });
 
-document.getElementById('btnSend').addEventListener('click', async ()=>{
+document.getElementById('btnSend').addEventListener('click', async () => {
   const method = document.getElementById('method').value;
   const endpoint = document.getElementById('endpoint').value;
-  let body = document.getElementById('body').value.trim();
+
   let parsedBody = null;
-  if(body) try{ parsedBody = JSON.parse(body); } catch(e){ return alert('Body inválido: JSON mal formado') }
-  const r = await request(endpoint, {method, body: parsedBody, auth:true});
-  document.getElementById('response').textContent = JSON.stringify(r, null, 2);
-  if(r.ok) showStatus('Requisição sucedida','success');
-  else showStatus('Erro na requisição: '+r.status,'error');
+  try {
+    parsedBody = parseJsonInput(document.getElementById('body').value);
+  } catch (e) {
+    return alert('Body invalido: JSON mal formado');
+  }
+
+  const response = await request(endpoint, {
+    method,
+    body: parsedBody,
+    auth: true
+  });
+
+  setResponse(response);
+  if (response.ok) showStatus('Requisicao sucedida', 'success');
+  else showStatus(`Erro na requisicao: ${response.body?.error || response.status || response.error}`, 'error');
 });
 
-document.getElementById('btnSendNoAuth').addEventListener('click', async ()=>{
+document.getElementById('btnSendNoAuth').addEventListener('click', async () => {
   const method = document.getElementById('method').value;
   const endpoint = document.getElementById('endpoint').value;
-  let body = document.getElementById('body').value.trim();
+
   let parsedBody = null;
-  if(body) try{ parsedBody = JSON.parse(body); } catch(e){ return alert('Body inválido: JSON mal formado') }
-  const r = await request(endpoint, {method, body: parsedBody, auth:false});
-  document.getElementById('response').textContent = JSON.stringify(r, null, 2);
-  if(r.ok) showStatus('Requisição sem auth sucedida','success');
-  else showStatus('Erro na requisição: '+r.status,'error');
+  try {
+    parsedBody = parseJsonInput(document.getElementById('body').value);
+  } catch (e) {
+    return alert('Body invalido: JSON mal formado');
+  }
+
+  const response = await request(endpoint, {
+    method,
+    body: parsedBody,
+    auth: false
+  });
+
+  setResponse(response);
+  if (response.ok) showStatus('Requisicao sem token sucedida', 'success');
+  else showStatus(`Erro na requisicao: ${response.body?.error || response.status || response.error}`, 'error');
 });
 
-document.getElementById('btnCreateSale').addEventListener('click', async ()=>{
-  // 1. Captura e validação dos dados
-  const cliente_id = parseInt(document.getElementById('saleCliente').value);
-  const produto_id = parseInt(document.getElementById('saleProduto').value);
-  const quantidade = parseInt(document.getElementById('saleQtde').value);
+document.getElementById('btnCreateSale').addEventListener('click', async () => {
+  const cliente_id = parseInt(document.getElementById('saleCliente').value, 10);
+  const produto_id = parseInt(document.getElementById('saleProduto').value, 10);
+  const quantidade = parseInt(document.getElementById('saleQtde').value, 10);
   const valor_unitario = parseFloat(document.getElementById('saleValor').value);
+  const forma_pagamento = document.getElementById('salePagamento').value;
+  const frete_valor = parseFloat(document.getElementById('saleFrete').value || '0');
 
-  // Verifica se temos números válidos (evita enviar NaN que causa erro 500 no banco)
-  if(!cliente_id || !produto_id || !quantidade || isNaN(valor_unitario)) {
-    return alert('Por favor, preencha ID do Cliente, Produto, Quantidade e Valor corretamente.');
+  if (!cliente_id || !produto_id || !quantidade || Number.isNaN(valor_unitario)) {
+    return alert('Preencha cliente, produto, quantidade e valor corretamente.');
   }
 
-  // 2. Construção do Payload (Conforme TESTING_GUIDE.md)
   const body = {
-    cliente_id: cliente_id,
-    forma_pagamento: 'pix',
-    frete_valor: 0.00, // Campo opcional mas recomendado para evitar nulos
-    itens: [{
-      produto_id: produto_id,
-      quantidade: quantidade,
-      valor_unitario: valor_unitario
-    }]
+    cliente_id,
+    forma_pagamento,
+    frete_valor,
+    itens: [
+      {
+        produto_id,
+        quantidade,
+        valor_unitario
+      }
+    ]
   };
 
-  const r = await request('/api/vendas', {method:'POST', body, auth:true});
-  document.getElementById('response').textContent = JSON.stringify(r, null, 2);
-  
-  if(r.ok) showStatus('Venda registrada com sucesso!', 'success');
-  else showStatus('Erro ao registrar venda: ' + (r.body?.error || r.status), 'error');
+  const response = await request('/api/vendas', {
+    method: 'POST',
+    body,
+    auth: true
+  });
+
+  setResponse(response);
+  if (response.ok) showStatus('Venda registrada com sucesso', 'success');
+  else showStatus(`Erro ao registrar venda: ${response.body?.error || response.status || response.error}`, 'error');
+});
+
+document.getElementById('btnCreateRent').addEventListener('click', async () => {
+  const cliente_id = parseInt(document.getElementById('rentCliente').value, 10);
+  const produto_id = parseInt(document.getElementById('rentProduto').value, 10);
+  const quantidade = parseInt(document.getElementById('rentQtde').value, 10);
+  const valor_unitario = parseFloat(document.getElementById('rentValor').value);
+  const data_inicio = toIsoFromLocalInput(document.getElementById('rentInicio').value);
+  const data_prevista_devolucao = toIsoFromLocalInput(document.getElementById('rentFim').value);
+
+  if (!cliente_id || !produto_id || !quantidade || Number.isNaN(valor_unitario) || !data_inicio || !data_prevista_devolucao) {
+    return alert('Preencha cliente, produto, quantidade, valor e datas da locacao corretamente.');
+  }
+
+  const body = {
+    cliente_id,
+    produto_id,
+    quantidade,
+    valor_unitario,
+    data_inicio,
+    data_prevista_devolucao
+  };
+
+  const response = await request('/api/locacoes', {
+    method: 'POST',
+    body,
+    auth: true
+  });
+
+  setResponse(response);
+  if (response.ok) showStatus('Locacao registrada com sucesso', 'success');
+  else showStatus(`Erro ao registrar locacao: ${response.body?.error || response.status || response.error}`, 'error');
+});
+
+document.querySelectorAll('.quick-action').forEach((button) => {
+  button.addEventListener('click', async () => {
+    const endpoint = button.dataset.endpoint;
+    const auth = button.dataset.auth !== 'false';
+    const response = await request(endpoint, { method: 'GET', auth });
+
+    setResponse(response);
+    if (response.ok) showStatus(`Consulta carregada: ${endpoint}`, 'success');
+    else showStatus(`Erro na consulta: ${response.body?.error || response.status || response.error}`, 'error');
+  });
 });

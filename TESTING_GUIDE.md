@@ -220,6 +220,152 @@ curl -X POST http://localhost:3000/api/locacoes \
   }'
 ```
 
+### Listar locações
+
+```bash
+curl -X GET http://localhost:3000/api/locacoes \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
+```
+
+### Buscar locação por ID
+
+```bash
+curl -X GET http://localhost:3000/api/locacoes/1 \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
+```
+
+---
+
+## ✅ Checklist de Validação
+
+### 1. Banco
+
+- Rode o schema principal e depois a migration `sql/migrations/2026-03-27_automacao_vendas_locacoes.sql`
+- Confirme se `transacoes` possui `cliente_id`, `origem` e `referencia_id`
+- Confirme se as funções `fn_financeiro_venda`, `fn_financeiro_locacao`, `fn_before_insert_transacoes` e `fn_after_insert_transacoes` foram atualizadas
+- Confirme se existem dados mínimos em `usuarios`, `clientes` e `produtos`
+
+### 2. API
+
+- Faça login e obtenha um token JWT válido
+- Teste `GET /api/clientes` e `GET /api/produtos`
+- Teste `POST /api/vendas`
+- Teste `POST /api/locacoes`
+- Depois valide `GET /api/dashboard/movimentacao-geral`
+- Valide também `GET /api/dashboard/resumo-operacional`
+- Confira se `GET /api/dashboard/financeiro-origens` retorna venda e locacao
+
+### 3. Pós-gravação no banco
+
+- Após venda, confira registros em `vendas`, `venda_itens`, `transacoes` e `financeiro_clientes`
+- Após locação, confira registros em `locacoes`, `locacao_itens`, `transacoes` e `financeiro_clientes`
+- Confira se o estoque foi reduzido apenas uma vez por operação
+- Confira se não houve duplicidade em `financeiro_clientes`
+
+---
+
+## 🧪 Payloads Prontos
+
+### Venda completa
+
+```json
+{
+  "cliente_id": 2,
+  "data": "2026-03-27",
+  "forma_pagamento": "Dinheiro",
+  "frete_valor": "R$ 22,50",
+  "itens": [
+    {
+      "produto_id": 1,
+      "quantidade": 2,
+      "valor_unitario": 10.5
+    },
+    {
+      "produto_id": 3,
+      "quantidade": 1,
+      "valor_unitario": "59,90"
+    }
+  ]
+}
+```
+
+### Venda legada
+
+```json
+{
+  "cliente": 2,
+  "data": "2026-03-27",
+  "forma_pagamento": "Dinheiro",
+  "frete_valor": "R$ 12,00",
+  "items": [
+    {
+      "produto": 1,
+      "quantidade": 1,
+      "valor": "10,00"
+    }
+  ]
+}
+```
+
+### Locação completa
+
+```json
+{
+  "produto_id": 4,
+  "cliente_id": 2,
+  "quantidade": 1,
+  "valor_unitario": "200,00",
+  "data_inicio": "2026-03-27T10:00:00Z",
+  "data_prevista_devolucao": "2026-04-03T10:00:00Z",
+  "observacao": "Locacao criada pela tela principal"
+}
+```
+
+### Consultas SQL de conferência
+
+```sql
+SELECT * FROM vendas ORDER BY id DESC LIMIT 5;
+SELECT * FROM venda_itens ORDER BY id DESC LIMIT 10;
+SELECT * FROM locacoes ORDER BY id DESC LIMIT 5;
+SELECT * FROM locacao_itens ORDER BY id DESC LIMIT 10;
+SELECT * FROM transacoes ORDER BY id DESC LIMIT 20;
+SELECT * FROM financeiro_clientes ORDER BY id DESC LIMIT 20;
+```
+
+---
+
+## 📊 Dashboard
+
+### Endpoints novos para o front
+
+```bash
+curl -X GET http://localhost:3000/api/dashboard/movimentacao-geral \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
+
+curl -X GET http://localhost:3000/api/dashboard/resumo-operacional \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
+
+curl -X GET http://localhost:3000/api/dashboard/financeiro-origens \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
+
+curl -X GET http://localhost:3000/api/dashboard/auditoria-integracao \
+  -H "Authorization: Bearer SEU_TOKEN_AQUI"
+```
+
+### Sugestão de consumo no front
+
+- Use `resumo-operacional` para cards principais
+- Use `movimentacao-geral` para timeline única de vendas, locações e transações
+- Use `financeiro-origens` para gráfico de pendências por origem
+- Use `auditoria-integracao` em tela administrativa para detectar falhas de sincronização
+- Continue usando `vendas-detalhadas`, `locacoes-ativas` e `financeiro-clientes` para tabelas detalhadas
+
+### Auditoria SQL direta
+
+```bash
+psql -U seu_usuario -d seu_banco -f sql/checks/auditoria_integracao.sql
+```
+
 ---
 
 ## 🧪 Dados de Teste Rápidos
