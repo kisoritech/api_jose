@@ -18,6 +18,12 @@ const dbConfig = process.env.DATABASE_URL
 
 const pool = new Pool(dbConfig);
 
+// Compatibilidade com código legado de MySQL
+// No PostgreSQL (pg), usamos .connect() em vez de .getConnection()
+pool.getConnection = async function() {
+  return await this.connect();
+};
+
 // Adiciona método 'execute' para compatibilidade com código estilo MySQL
 // Converte automaticamente '?' para '$1', '$2', etc.
 pool.execute = async function(text, params) {
