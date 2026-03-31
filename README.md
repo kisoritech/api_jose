@@ -1,6 +1,6 @@
 # API Node.js | Express + PostgreSQL
 
-API para gestao de clientes, produtos, vendas, locacoes, estoque, transacoes e financeiro, com autenticacao JWT e automacoes para refletir operacoes nas tabelas relacionadas.
+API para gestao de clientes, produtos, vendas, locacoes, estoque, transacoes e financeiro, com autenticacao JWT, rotas legadas de compatibilidade e dashboard analitico.
 
 ## Visao Geral
 
@@ -10,9 +10,15 @@ Esta API foi ajustada para trabalhar de forma mais consistente com PostgreSQL e 
 - trata melhor erros de enum, foreign key, estoque e validacao
 - suporta rotas `/api/...` e tambem rotas legadas usadas por telas antigas
 - automatiza reflexos de vendas e locacoes em `transacoes`, `locacao_itens` e `financeiro_clientes`
-- expõe endpoints de dashboard e auditoria para acompanhamento operacional
+- expoe endpoints de dashboard, relatorios completos e auditoria
 
 ## Melhorias Implementadas
+
+### 1. Compatibilidade com PostgreSQL
+
+- wrapper de compatibilidade em `src/config/database.js`
+- suporte a `getConnection`, `execute`, `beginTransaction`, `commit` e `rollback`
+- adaptacao de codigo legado originalmente escrito no estilo MySQL
 
 ### 2. Vendas mais consistentes
 
@@ -29,12 +35,16 @@ Esta API foi ajustada para trabalhar de forma mais consistente com PostgreSQL e 
 - geracao automatica de `financeiro_clientes`
 - listagem e detalhe de locacoes na API
 
-### 4. Dashboard e auditoria
+### 4. Dashboard, relatorios e auditoria
 
 - endpoints para resumo operacional
 - endpoint de movimentacao geral
 - endpoint de financeiro por origem
 - endpoint de auditoria de integracao entre tabelas
+- relatorio financeiro completo
+- relatorio de produtos com estoque, vendas e locacoes
+- relatorio de vendas com ticket medio e formas de pagamento
+- relatorio de locacoes com status e atraso
 
 ## Fluxo Operacional
 
@@ -67,7 +77,29 @@ Fluxo:
 6. garante o lancamento em `financeiro_clientes`
 7. retorna a locacao consolidada
 
+## Estrutura do Projeto
 
+Principais caminhos:
+
+- `src/app.js`: configuracao do Express
+- `src/server.js`: inicializacao do servidor
+- `src/config/database.js`: conexao PostgreSQL
+- `src/controllers/AuthController.js`: autenticacao
+- `src/controllers/VendaController.js`: vendas
+- `src/controllers/LocacaoController.js`: locacoes
+- `src/services/LocacaoService.js`: regras de locacao
+- `src/services/AutomacaoLancamentosService.js`: automacoes de transacao e financeiro
+- `src/routes/index.js`: roteamento principal `/api`
+- `src/routes/legacyRoutes.js`: compatibilidade com rotas antigas
+- `src/routes/dashboardRoutes.js`: dashboard, relatorios e auditoria
+- `public/index.html`: UI de teste da API
+- `public/app.js`: logica da UI de teste
+- `sql/schema_postgres.sql`: schema principal
+- `sql/migrations/2026-03-27_automacao_vendas_locacoes.sql`: migration de automacao
+- `sql/checks/auditoria_integracao.sql`: auditoria SQL
+- `TESTING_GUIDE.md`: guia de testes e payloads
+
+## Instalacao
 
 ### Requisitos
 
@@ -119,6 +151,12 @@ Base local:
 http://localhost:3000
 ```
 
+Base publicada:
+
+```text
+https://api-jose-jhbt.onrender.com
+```
+
 ## Autenticacao
 
 Rotas publicas:
@@ -159,6 +197,7 @@ curl -X POST http://localhost:3000/api/auth/login ^
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
+- `GET /api/auth/me`
 
 ### Clientes
 
@@ -202,6 +241,10 @@ curl -X POST http://localhost:3000/api/auth/login ^
 - `GET /api/dashboard/movimentacao-geral`
 - `GET /api/dashboard/resumo-operacional`
 - `GET /api/dashboard/financeiro-origens`
+- `GET /api/dashboard/financeiro-completo`
+- `GET /api/dashboard/produtos-relatorio`
+- `GET /api/dashboard/vendas-relatorio`
+- `GET /api/dashboard/locacoes-relatorio`
 - `GET /api/dashboard/auditoria-integracao`
 
 ## Rotas Legadas
@@ -253,27 +296,7 @@ Resposta exemplo:
 ]
 ```
 
-### 3. Buscar um cliente por ID
-
-```bash
-curl -X GET http://localhost:3000/api/clientes/2 ^
-  -H "Authorization: Bearer SEU_TOKEN"
-```
-
-Resposta exemplo:
-
-```json
-{
-  "id": 2,
-  "tipo_pessoa": "juridica",
-  "nome": "Empresa XYZ Ltda",
-  "email": "contato@xyz.com",
-  "telefone": "11999999999",
-  "ativo": true
-}
-```
-
-### 4. Criar um cliente
+### 3. Criar um cliente
 
 ```bash
 curl -X POST http://localhost:3000/api/clientes ^
@@ -282,67 +305,14 @@ curl -X POST http://localhost:3000/api/clientes ^
   -d "{\"nome\":\"Cliente Novo\",\"tipo_pessoa\":\"fisica\",\"email\":\"cliente@email.com\",\"telefone\":\"11988887777\"}"
 ```
 
-Payload JSON:
-
-```json
-{
-  "nome": "Cliente Novo",
-  "tipo_pessoa": "fisica",
-  "email": "cliente@email.com",
-  "telefone": "11988887777"
-}
-```
-
-### 5. Atualizar um cliente
-
-```bash
-curl -X PUT http://localhost:3000/api/clientes/2 ^
-  -H "Authorization: Bearer SEU_TOKEN" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"telefone\":\"11977776666\",\"email\":\"novo@xyz.com\"}"
-```
-
-Payload JSON:
-
-```json
-{
-  "telefone": "11977776666",
-  "email": "novo@xyz.com"
-}
-```
-
-### 6. Listar produtos
+### 4. Listar produtos
 
 ```bash
 curl -X GET http://localhost:3000/api/produtos ^
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
-Resposta exemplo:
-
-```json
-[
-  {
-    "id": 1,
-    "nome": "lata pepsi",
-    "preco_venda": "10.00",
-    "preco_custo": "5.00",
-    "valor_locacao": null,
-    "estoque": 18,
-    "tipo": "venda",
-    "ativo": true
-  }
-]
-```
-
-### 7. Buscar um produto por ID
-
-```bash
-curl -X GET http://localhost:3000/api/produtos/1 ^
-  -H "Authorization: Bearer SEU_TOKEN"
-```
-
-### 8. Criar um produto
+### 5. Criar um produto
 
 ```bash
 curl -X POST http://localhost:3000/api/produtos ^
@@ -351,60 +321,13 @@ curl -X POST http://localhost:3000/api/produtos ^
   -d "{\"nome\":\"Produto Teste\",\"preco_venda\":59.9,\"preco_custo\":30,\"quantidade\":8,\"tipo\":\"ambos\"}"
 ```
 
-Payload JSON:
-
-```json
-{
-  "nome": "Produto Teste",
-  "preco_venda": 59.9,
-  "preco_custo": 30,
-  "quantidade": 8,
-  "tipo": "ambos"
-}
-```
-
-### 9. Atualizar um produto
-
-```bash
-curl -X PUT http://localhost:3000/api/produtos/1 ^
-  -H "Authorization: Bearer SEU_TOKEN" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"preco_venda\":12.5,\"quantidade\":20}"
-```
-
-Payload JSON:
-
-```json
-{
-  "preco_venda": 12.5,
-  "quantidade": 20
-}
-```
-
-### 10. Criar venda
+### 6. Criar venda
 
 ```bash
 curl -X POST http://localhost:3000/api/vendas ^
   -H "Authorization: Bearer SEU_TOKEN" ^
   -H "Content-Type: application/json" ^
   -d "{\"cliente_id\":2,\"forma_pagamento\":\"Dinheiro\",\"frete_valor\":\"R$ 22,50\",\"itens\":[{\"produto_id\":1,\"quantidade\":2,\"valor_unitario\":10.5}]}"
-```
-
-Payload JSON:
-
-```json
-{
-  "cliente_id": 2,
-  "forma_pagamento": "Dinheiro",
-  "frete_valor": "R$ 22,50",
-  "itens": [
-    {
-      "produto_id": 1,
-      "quantidade": 2,
-      "valor_unitario": 10.5
-    }
-  ]
-}
 ```
 
 Resposta exemplo:
@@ -424,85 +347,20 @@ Resposta exemplo:
 }
 ```
 
-### 11. Listar vendas
-
-```bash
-curl -X GET http://localhost:3000/api/vendas ^
-  -H "Authorization: Bearer SEU_TOKEN"
-```
-
-Resposta exemplo:
-
-```json
-[
-  {
-    "id": 15,
-    "criado_em": "2026-03-27T00:00:00.000Z",
-    "forma_pagamento": "dinheiro",
-    "status": "concluida",
-    "valor_total": "21.00",
-    "frete_valor": "22.50",
-    "total_final": "43.50",
-    "cliente_nome": "Empresa XYZ Ltda",
-    "vendedor": "Jose"
-  }
-]
-```
-
-### 12. Consultar uma venda
+### 7. Consultar uma venda
 
 ```bash
 curl -X GET http://localhost:3000/api/vendas/15 ^
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
-Resposta exemplo:
-
-```json
-{
-  "id": 15,
-  "cliente_id": 2,
-  "valor_total": "21.00",
-  "frete_valor": "22.50",
-  "total_final": "43.50",
-  "forma_pagamento": "dinheiro",
-  "status": "concluida",
-  "cliente_nome": "Empresa XYZ Ltda",
-  "itens": [
-    {
-      "id": 10,
-      "venda_id": 15,
-      "produto_id": 1,
-      "produto_nome": "lata pepsi",
-      "quantidade": 2,
-      "valor_unitario": "10.50",
-      "valor_total": "21.00"
-    }
-  ]
-}
-```
-
-### 13. Criar locacao
+### 8. Criar locacao
 
 ```bash
 curl -X POST http://localhost:3000/api/locacoes ^
   -H "Authorization: Bearer SEU_TOKEN" ^
   -H "Content-Type: application/json" ^
   -d "{\"produto_id\":4,\"cliente_id\":2,\"quantidade\":1,\"valor_unitario\":\"200,00\",\"data_inicio\":\"2026-03-27T10:00:00Z\",\"data_prevista_devolucao\":\"2026-04-03T10:00:00Z\"}"
-```
-
-Payload JSON:
-
-```json
-{
-  "produto_id": 4,
-  "cliente_id": 2,
-  "quantidade": 1,
-  "valor_unitario": "200,00",
-  "data_inicio": "2026-03-27T10:00:00Z",
-  "data_prevista_devolucao": "2026-04-03T10:00:00Z",
-  "observacao": "Locacao criada pela tela principal"
-}
 ```
 
 Resposta exemplo:
@@ -531,24 +389,38 @@ Resposta exemplo:
 }
 ```
 
-### 14. Listar locacoes
-
-```bash
-curl -X GET http://localhost:3000/api/locacoes ^
-  -H "Authorization: Bearer SEU_TOKEN"
-```
-
-### 15. Consultar uma locacao
-
-```bash
-curl -X GET http://localhost:3000/api/locacoes/8 ^
-  -H "Authorization: Bearer SEU_TOKEN"
-```
-
-### 16. Consultar resumo do dashboard
+### 9. Consultar resumo do dashboard
 
 ```bash
 curl -X GET http://localhost:3000/api/dashboard/resumo ^
+  -H "Authorization: Bearer SEU_TOKEN"
+```
+
+### 10. Consultar movimentacao geral
+
+```bash
+curl -X GET http://localhost:3000/api/dashboard/movimentacao-geral ^
+  -H "Authorization: Bearer SEU_TOKEN"
+```
+
+### 11. Consultar resumo operacional
+
+```bash
+curl -X GET http://localhost:3000/api/dashboard/resumo-operacional ^
+  -H "Authorization: Bearer SEU_TOKEN"
+```
+
+### 12. Consultar financeiro por origem
+
+```bash
+curl -X GET http://localhost:3000/api/dashboard/financeiro-origens ^
+  -H "Authorization: Bearer SEU_TOKEN"
+```
+
+### 13. Consultar financeiro completo
+
+```bash
+curl -X GET http://localhost:3000/api/dashboard/financeiro-completo ^
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
@@ -556,58 +428,75 @@ Resposta exemplo:
 
 ```json
 {
-  "total_clientes": 12,
-  "total_produtos": 40,
-  "produtos_disponiveis": 35,
-  "faturamento_total": "25340.50"
+  "resumo": {
+    "total_lancamentos": "18",
+    "total_debitos": "5300.00",
+    "total_creditos": "1200.00",
+    "total_pendente": "2800.00",
+    "total_pago": "3500.00",
+    "total_cancelado": "200.00"
+  },
+  "por_origem": [],
+  "por_cliente": [],
+  "ultimos_lancamentos": []
 }
 ```
 
-### 17. Consultar movimentacao geral
+### 14. Consultar relatorio de produtos
 
 ```bash
-curl -X GET http://localhost:3000/api/dashboard/movimentacao-geral ^
+curl -X GET http://localhost:3000/api/dashboard/produtos-relatorio ^
+  -H "Authorization: Bearer SEU_TOKEN"
+```
+
+### 15. Consultar relatorio de vendas
+
+```bash
+curl -X GET http://localhost:3000/api/dashboard/vendas-relatorio ^
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
 Resposta exemplo:
 
 ```json
-[
-  {
-    "tipo": "venda",
-    "id": 15,
-    "cliente_id": 2,
-    "cliente_nome": "Empresa XYZ Ltda",
-    "valor": "43.50",
-    "status": "concluida"
+{
+  "resumo": {
+    "total_vendas": "10",
+    "faturamento_total": "25340.50",
+    "subtotal_produtos": "24700.50",
+    "total_frete": "640.00",
+    "ticket_medio": "2534.05"
   },
-  {
-    "tipo": "locacao",
-    "id": 8,
-    "cliente_id": 2,
-    "cliente_nome": "Empresa XYZ Ltda",
-    "valor": "200.00",
-    "status": "ativa"
-  }
-]
+  "por_forma_pagamento": [],
+  "vendas": []
+}
 ```
 
-### 18. Consultar resumo operacional
+### 16. Consultar relatorio de locacoes
 
 ```bash
-curl -X GET http://localhost:3000/api/dashboard/resumo-operacional ^
+curl -X GET http://localhost:3000/api/dashboard/locacoes-relatorio ^
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
-### 19. Consultar financeiro por origem
+Resposta exemplo:
 
-```bash
-curl -X GET http://localhost:3000/api/dashboard/financeiro-origens ^
-  -H "Authorization: Bearer SEU_TOKEN"
+```json
+{
+  "resumo": {
+    "total_locacoes": "6",
+    "valor_total_locado": "1600.00",
+    "ativas": "3",
+    "atrasadas": "1",
+    "devolvidas": "2",
+    "canceladas": "0"
+  },
+  "por_status": [],
+  "locacoes": []
+}
 ```
 
-### 20. Consultar auditoria de integracao
+### 17. Consultar auditoria de integracao
 
 ```bash
 curl -X GET http://localhost:3000/api/dashboard/auditoria-integracao ^
@@ -630,43 +519,12 @@ Resposta exemplo:
 }
 ```
 
-### 21. Usar a rota legada de venda
+### 18. Usar a rota legada de venda
 
 ```bash
 curl -X POST http://localhost:3000/salvar_venda ^
   -H "Content-Type: application/json" ^
   -d "{\"cliente\":2,\"forma_pagamento\":\"Dinheiro\",\"frete_valor\":\"R$ 10,00\",\"items\":[{\"produto\":1,\"quantidade\":1,\"valor\":\"10,00\"}]}"
-```
-
-Payload JSON legado:
-
-```json
-{
-  "cliente": 2,
-  "forma_pagamento": "Dinheiro",
-  "frete_valor": "R$ 10,00",
-  "items": [
-    {
-      "produto": 1,
-      "quantidade": 1,
-      "valor": "10,00"
-    }
-  ]
-}
-```
-
-### 7. Consultar dashboard operacional
-
-```bash
-curl -X GET http://localhost:3000/api/dashboard/resumo-operacional ^
-  -H "Authorization: Bearer SEU_TOKEN"
-```
-
-### 8. Consultar auditoria de integracao
-
-```bash
-curl -X GET http://localhost:3000/api/dashboard/auditoria-integracao ^
-  -H "Authorization: Bearer SEU_TOKEN"
 ```
 
 ## Formatos de Payload Aceitos
@@ -732,6 +590,16 @@ Com a migration aplicada, a API passa a refletir automaticamente:
 - `locacoes` -> `transacoes`
 - `locacoes` -> `financeiro_clientes`
 
+## Relatorios Completos do Dashboard
+
+Use estes endpoints quando precisar de leitura mais detalhada e mais exata para painel administrativo:
+
+- `GET /api/dashboard/financeiro-completo`
+- `GET /api/dashboard/produtos-relatorio`
+- `GET /api/dashboard/vendas-relatorio`
+- `GET /api/dashboard/locacoes-relatorio`
+- `GET /api/dashboard/auditoria-integracao`
+
 ## Auditoria e Conferencia
 
 ### Endpoint de auditoria
@@ -769,6 +637,17 @@ Ele contem:
 - consultas SQL de validacao
 - endpoints recomendados para o front
 
+## UI de Teste
+
+A interface estatica em `public/index.html` oferece:
+
+- login e registro
+- venda rapida
+- locacao rapida
+- atalhos para clientes, produtos, vendas e locacoes
+- atalhos para os relatorios e auditorias do dashboard
+- construtor generico de requisicoes
+
 ## Observacoes Importantes
 
 - para automacao completa, aplique a migration em `sql/migrations`
@@ -801,5 +680,9 @@ Verifique:
 
 Consulte:
 
+- `GET /api/dashboard/financeiro-completo`
+- `GET /api/dashboard/produtos-relatorio`
+- `GET /api/dashboard/vendas-relatorio`
+- `GET /api/dashboard/locacoes-relatorio`
 - `GET /api/dashboard/auditoria-integracao`
 - `sql/checks/auditoria_integracao.sql`
