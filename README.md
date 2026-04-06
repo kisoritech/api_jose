@@ -1,10 +1,10 @@
-# API Node.js | Express + PostgreSQL
+# API Node.js | Express + PostgreSQL / Supabase
 
 API para gestao de clientes, produtos, vendas, locacoes, estoque, transacoes e financeiro, com autenticacao JWT, rotas legadas de compatibilidade e dashboard analitico.
 
 ## Visao Geral
 
-Esta API foi ajustada para trabalhar de forma mais consistente com PostgreSQL e com o schema operacional do projeto. O backend agora:
+Esta API foi ajustada para trabalhar de forma mais consistente com PostgreSQL, incluindo bancos hospedados no Supabase, e com o schema operacional do projeto. O backend agora:
 
 - normaliza payloads vindos do front
 - trata melhor erros de enum, foreign key, estoque e validacao
@@ -83,7 +83,7 @@ Principais caminhos:
 
 - `src/app.js`: configuracao do Express
 - `src/server.js`: inicializacao do servidor
-- `src/config/database.js`: conexao PostgreSQL
+- `src/config/database.js`: conexao PostgreSQL / Supabase
 - `src/controllers/AuthController.js`: autenticacao
 - `src/controllers/VendaController.js`: vendas
 - `src/controllers/LocacaoController.js`: locacoes
@@ -104,7 +104,7 @@ Principais caminhos:
 ### Requisitos
 
 - Node.js 18+
-- PostgreSQL 12+
+- PostgreSQL 12+ ou Supabase Postgres
 
 ### Passos
 
@@ -112,26 +112,39 @@ Principais caminhos:
 npm install
 ```
 
-Crie o `.env`:
+Crie o `.env`.
+
+Para Supabase, prefira a string de conexao completa:
 
 ```env
 NODE_ENV=development
 PORT=3000
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=sua_senha
-DB_NAME=sistema
-DB_SSL=false
+SUPABASE_DB_URL=postgresql://postgres:[SENHA]@db.[PROJECT-REF].supabase.co:5432/postgres
+DB_SSL=true
 JWT_SECRET=seu_segredo
 JWT_EXPIRES_IN=8h
 ```
+
+Se preferir usar variaveis separadas, a API tambem aceita:
+
+```env
+SUPABASE_DB_HOST=db.[PROJECT-REF].supabase.co
+SUPABASE_DB_PORT=5432
+SUPABASE_DB_USER=postgres
+SUPABASE_DB_PASSWORD=sua_senha
+SUPABASE_DB_NAME=postgres
+SUPABASE_DB_SSL=true
+```
+
+Hospedagens genericas continuam funcionando com `DATABASE_URL` ou `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME`.
 
 Rode o schema principal:
 
 ```bash
 psql -U seu_usuario -d seu_banco -f sql/schema_postgres.sql
 ```
+
+No Supabase, esse comando pode ser executado no SQL Editor, no Database CLI, ou via `psql` apontando para a conexao do projeto.
 
 Rode a migration de automacao:
 
@@ -650,6 +663,8 @@ A interface estatica em `public/index.html` oferece:
 
 ## Observacoes Importantes
 
+- a API continua usando o mesmo schema relacional; no Supabase a mudanca principal fica na conexao e no provisionamento do banco
+- para producao no Supabase, mantenha `DB_SSL=true`
 - para automacao completa, aplique a migration em `sql/migrations`
 - sem a migration, parte do fluxo em `transacoes` pode ficar limitado
 - o projeto ainda suporta rotas legadas para nao quebrar telas existentes

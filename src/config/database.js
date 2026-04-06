@@ -1,22 +1,62 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-// Configuracao da conexao
-const dbConfig = process.env.DATABASE_URL
-  ? {
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-    }
-  : {
-      host: process.env.DB_HOST || 'localhost',
-      port: process.env.DB_PORT || 5432,
-      user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME || 'sistema',
-      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+function parseBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === '') return fallback;
+  return String(value).toLowerCase() === 'true';
+}
+
+function buildSslConfig(enabled) {
+  return enabled ? { rejectUnauthorized: false } : false;
+}
+
+function resolveDatabaseConfig() {
+  const supabaseConnectionString = process.env.SUPABASE_DB_URL || process.env.SUPABASE_DATABASE_URL;
+  const genericConnectionString = process.env.DATABASE_URL;
+  const connectionString = supabaseConnectionString || genericConnectionString;
+
+  const isSupabaseConnection =
+    Boolean(supabaseConnectionString) ||
+    Boolean(process.env.SUPABASE_DB_HOST) ||
+    Boolean(process.env.SUPABASE_PROJECT_REF);
+
+  const sslEnabled = parseBoolean(
+    process.env.DB_SSL ?? process.env.SUPABASE_DB_SSL,
+    isSupabaseConnection
+  );
+
+  const baseConfig = {
+    ssl: buildSslConfig(sslEnabled),
+    max: Number(process.env.DB_POOL_MAX || 10),
+    idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS || 30000),
+    connectionTimeoutMillis: Number(process.env.DB_CONNECTION_TIMEOUT_MS || 10000),
+  };
+
+  if (connectionString) {
+    return {
+      ...baseConfig,
+      connectionString,
     };
+  }
+
+  return {
+    ...baseConfig,
+    host: process.env.SUPABASE_DB_HOST || process.env.DB_HOST || 'localhost',
+    port: Number(process.env.SUPABASE_DB_PORT || process.env.DB_PORT || 5432),
+    user: process.env.SUPABASE_DB_USER || process.env.DB_USER || 'postgres',
+    password: process.env.SUPABASE_DB_PASSWORD || process.env.DB_PASSWORD,
+    database: process.env.SUPABASE_DB_NAME || process.env.DB_NAME || 'postgres',
+  };
+}
+
+// Configuracao da conexao
+const dbConfig = resolveDatabaseConfig();
 
 const pool = new Pool(dbConfig);
+
+pool.on('error', (error) => {
+  console.error('Erro inesperado no pool PostgreSQL:', error);
+});
 
 function normalizeQuery(text) {
   let i = 1;
