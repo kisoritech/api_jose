@@ -48,6 +48,18 @@ Esta API foi ajustada para trabalhar de forma mais consistente com PostgreSQL, i
 
 ## Fluxo Operacional
 
+### Produto
+
+`POST /api/produtos`
+
+Fluxo:
+
+1. recebe os dados do produto e a `quantidade` inicial
+2. grava o produto com estoque zerado
+3. se a `quantidade` for maior que zero, registra uma `transacao` de `entrada`
+4. a trigger de `transacoes` atualiza o estoque do produto
+5. retorna o `id` do produto e indica se houve transacao de estoque inicial
+
 ### Venda
 
 `POST /api/vendas`
@@ -334,6 +346,32 @@ curl -X POST http://localhost:3000/api/produtos ^
   -d "{\"nome\":\"Produto Teste\",\"preco_venda\":59.9,\"preco_custo\":30,\"quantidade\":8,\"tipo\":\"ambos\"}"
 ```
 
+Resposta exemplo:
+
+```json
+{
+  "id": 12,
+  "transacao_estoque_inicial": true
+}
+```
+
+Ao cadastrar com `quantidade: 8`, a API cria o produto com estoque inicial zerado e registra uma linha em `transacoes` semelhante a:
+
+```json
+{
+  "produto_id": 12,
+  "usuario_id": 1,
+  "tipo": "entrada",
+  "quantidade": 8,
+  "valor_unitario": 30,
+  "origem": "ajuste",
+  "referencia_id": 12,
+  "observacao": "Estoque inicial no cadastro do produto #12"
+}
+```
+
+Isso faz com que o historico de movimentacao fique vinculado ao produto desde o cadastro, e o estoque final em `produtos.quantidade` continue em `8`, sem duplicidade.
+
 ### 6. Criar venda
 
 ```bash
@@ -596,6 +634,7 @@ curl -X POST http://localhost:3000/salvar_venda ^
 
 Com a migration aplicada, a API passa a refletir automaticamente:
 
+- `produtos` -> `transacoes` ao registrar estoque inicial no cadastro
 - `vendas` -> `venda_itens`
 - `vendas` -> `transacoes`
 - `vendas` -> `financeiro_clientes`

@@ -1,6 +1,12 @@
 const baseUrlInput = document.getElementById('baseUrl');
 const tokenKey = 'api_test_ui_token';
 
+function parseNumberInput(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
 function setToken(token) {
   const input = document.getElementById('tokenInput');
   if (token) {
@@ -42,6 +48,55 @@ function toIsoFromLocalInput(value) {
   if (!value) return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function buildProductPayload() {
+  const nome = document.getElementById('productNome').value.trim();
+  const tipo = document.getElementById('productTipo').value;
+  const codigo_barras = document.getElementById('productCodigoBarras').value.trim();
+  const descricao = document.getElementById('productDescricao').value.trim();
+  const preco_venda = parseNumberInput(document.getElementById('productPrecoVenda').value);
+  const preco_custo = parseNumberInput(document.getElementById('productPrecoCusto').value);
+  const valor_locacao = parseNumberInput(document.getElementById('productValorLocacao').value);
+  const quantidade = parseNumberInput(document.getElementById('productQuantidade').value);
+
+  const payload = {
+    nome,
+    tipo
+  };
+
+  if (descricao) payload.descricao = descricao;
+  if (codigo_barras) payload.codigo_barras = codigo_barras;
+  if (preco_venda !== null) payload.preco_venda = preco_venda;
+  if (preco_custo !== null) payload.preco_custo = preco_custo;
+  if (valor_locacao !== null) payload.valor_locacao = valor_locacao;
+  if (quantidade !== null) payload.quantidade = quantidade;
+
+  return payload;
+}
+
+function updateProductSummary() {
+  const payload = buildProductPayload();
+  const summary = document.getElementById('productSummary');
+
+  if (!payload.nome) {
+    summary.textContent = 'Preencha pelo menos o nome do produto para montar o resumo.';
+    return;
+  }
+
+  if (!Number.isFinite(payload.preco_venda)) {
+    summary.textContent = `O produto "${payload.nome}" ainda precisa de um preco de venda valido antes do envio.`;
+    return;
+  }
+
+  const quantidade = Number.isFinite(payload.quantidade) ? payload.quantidade : 0;
+  const valorBase = Number.isFinite(payload.preco_custo) && payload.preco_custo > 0
+    ? payload.preco_custo
+    : payload.preco_venda;
+
+  summary.textContent = quantidade > 0
+    ? `Ao cadastrar "${payload.nome}", a API vai criar o produto e registrar uma entrada inicial de ${quantidade} unidade(s) em transacoes com valor base ${valorBase}.`
+    : `Ao cadastrar "${payload.nome}", a API vai criar o produto sem estoque inicial. Depois voce pode abastecer o estoque por movimentacao.`;
 }
 
 async function request(path, opts = {}) {
@@ -149,6 +204,53 @@ document.getElementById('btnRegister').addEventListener('click', async () => {
   }
 
   setResponse(response);
+});
+
+document.getElementById('btnCreateProduct').addEventListener('click', async () => {
+  const body = buildProductPayload();
+
+  if (!body.nome || !Number.isFinite(body.preco_venda)) {
+    return alert('Preencha pelo menos nome e preco de venda do produto.');
+  }
+
+  if (body.quantidade !== undefined && (!Number.isInteger(body.quantidade) || body.quantidade < 0)) {
+    return alert('O estoque inicial deve ser um numero inteiro maior ou igual a zero.');
+  }
+
+  if (body.preco_custo !== undefined && (!Number.isFinite(body.preco_custo) || body.preco_custo < 0)) {
+    return alert('O preco de custo deve ser um numero maior ou igual a zero.');
+  }
+
+  if (body.valor_locacao !== undefined && (!Number.isFinite(body.valor_locacao) || body.valor_locacao < 0)) {
+    return alert('O valor de locacao deve ser um numero maior ou igual a zero.');
+  }
+
+  const response = await request('/api/produtos', {
+    method: 'POST',
+    body,
+    auth: true
+  });
+
+  setResponse(response);
+  if (response.ok) {
+    const produtoId = response.body?.body?.id || response.body?.id;
+    showStatus('Produto cadastrado com sucesso', 'success');
+    if (produtoId) {
+      document.getElementById('saleProduto').value = produtoId;
+      document.getElementById('rentProduto').value = produtoId;
+    }
+  } else {
+    showStatus(`Erro ao cadastrar produto: ${response.body?.error || response.status || response.error}`, 'error');
+  }
+});
+
+document.getElementById('btnProductToBuilder').addEventListener('click', () => {
+  const payload = buildProductPayload();
+  document.getElementById('method').value = 'POST';
+  document.getElementById('endpoint').value = '/api/produtos';
+  document.getElementById('body').value = JSON.stringify(payload, null, 2);
+  updateProductSummary();
+  showStatus('Payload do produto enviado para o construtor de requisicoes', 'success');
 });
 
 document.getElementById('btnSend').addEventListener('click', async () => {
@@ -274,3 +376,18 @@ document.querySelectorAll('.quick-action').forEach((button) => {
     else showStatus(`Erro na consulta: ${response.body?.error || response.status || response.error}`, 'error');
   });
 });
+
+[
+  'productNome',
+  'productTipo',
+  'productCodigoBarras',
+  'productDescricao',
+  'productPrecoVenda',
+  'productPrecoCusto',
+  'productValorLocacao',
+  'productQuantidade'
+].forEach((id) => {
+  document.getElementById(id).addEventListener('input', updateProductSummary);
+});
+
+updateProductSummary();
