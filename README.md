@@ -103,7 +103,7 @@ Principais caminhos:
 
 ### Requisitos
 
-- Node.js 18+
+- Node.js 20+
 - PostgreSQL 12+ ou Supabase Postgres
 
 ### Passos

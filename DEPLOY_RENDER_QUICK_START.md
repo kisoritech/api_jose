@@ -58,15 +58,18 @@ Enquanto faz build, adicione variáveis:
 
 No painel → **Environment**
 
-Adicione (Render fornecerá DATABASE_URL automaticamente):
+Adicione:
 
 ```
 NODE_ENV=production
 PORT=10000
+DATABASE_URL=postgresql://postgres:[SENHA]@db.[PROJECT-REF].supabase.co:5432/postgres
 
 JWT_SECRET=coloque_um_secret_muito_seguro_aqui
 JWT_EXPIRES_IN=8h
 ```
+
+Se voce estiver usando PostgreSQL do proprio Render, ele preencherá `DATABASE_URL` automaticamente. Se estiver usando Supabase, configure `DATABASE_URL` ou `SUPABASE_DB_URL` manualmente no painel.
 
 ---
 

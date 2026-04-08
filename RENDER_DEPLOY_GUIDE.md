@@ -25,7 +25,7 @@ PostgreSQL é nativo no Render e muito fácil de configurar.
    - **Plan**: Free (válido por 90 dias) ou Starter (pago)
 4. Clique **Create Database**
 
-Render fornecerá automaticamente uma `DATABASE_URL`. Anote ela para depois.
+Se voce criar um banco PostgreSQL no proprio Render, ele fornecerá automaticamente uma `DATABASE_URL`. Se for usar Supabase, voce deve copiar a string de conexao do Supabase e cadastrá-la no serviço depois.
 
 ### Passo 2: Deploy da API
 
@@ -53,7 +53,11 @@ JWT_SECRET=seu_segredo_super_seguro_aqui
 JWT_EXPIRES_IN=8h
 ```
 
-⚠️ **Importante**: Render **automaticamente** configura `DATABASE_URL` para serviços PostgreSQL. A API lê esta variável diretamente, então você não precisa adicionar `DB_HOST`, `DB_USER`, etc. manualmente.
+⚠️ **Importante**:
+
+- Se o banco estiver no **Render**, a `DATABASE_URL` costuma ser configurada automaticamente.
+- Se o banco estiver no **Supabase**, adicione manualmente `DATABASE_URL` ou `SUPABASE_DB_URL` com a string de conexao PostgreSQL do projeto.
+- Nao use `SUPABASE_URL` nem `SUPABASE_SERVICE_ROLE_KEY` nesta API, porque o codigo atual conecta ao banco via `pg`.
 
 ### Passo 4: Executar o Schema
 
@@ -105,24 +109,8 @@ PORT=3000
 A configuração está em `src/config/database.js`:
 
 ```javascript
-// Lê DATABASE_URL automaticamente fornecido pelo Render
-// Ou usa variáveis individuais (DB_HOST, DB_USER, etc.) em desenvolvimento
-
-const pgConfig = process.env.DATABASE_URL
-  ? {
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-    }
-  : {
-      host: process.env.DB_HOST || 'localhost',
-      port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5432,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-    };
-
-const pool = new Pool(pgConfig);
+// Lê SUPABASE_DB_URL / SUPABASE_DATABASE_URL ou DATABASE_URL
+// Ou usa variáveis individuais em desenvolvimento
 ```
 
 ---

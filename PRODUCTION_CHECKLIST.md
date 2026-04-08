@@ -19,7 +19,7 @@
 ### ✅ `package.json`
 **Melhorias aplicadas**:
 - `main`: aponta para `src/server.js`
-- `engines`: Node.js 18.x (compatível com Render)
+- `engines`: Node.js 20.x (compatível com as dependências atuais e com Render)
 - `scripts`: `start` e `dev`
 - **Novas dependências de segurança**:
   - `helmet` - headers de segurança HTTP
@@ -249,4 +249,4 @@ Em caso de dúvidas no deploy:
 
 **Data**: 1 de março de 2026
 **Versão API**: 1.0.0
-**Node.js**: 18.x
+**Node.js**: 20.x
