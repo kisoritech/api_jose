@@ -1,4 +1,5 @@
 require('dotenv').config();
+const dns = require('dns');
 const { Pool } = require('pg');
 
 function parseBoolean(value, fallback = false) {
@@ -8,6 +9,24 @@ function parseBoolean(value, fallback = false) {
 
 function buildSslConfig(enabled) {
   return enabled ? { rejectUnauthorized: false } : false;
+}
+
+function parseIpFamily(value, fallback) {
+  if (value === undefined || value === null || value === '') return fallback;
+
+  const parsed = Number(value);
+  return parsed === 4 || parsed === 6 ? parsed : fallback;
+}
+
+function buildLookupConfig(family) {
+  if (!family) return {};
+
+  return {
+    family,
+    lookup(hostname, options, callback) {
+      return dns.lookup(hostname, { ...options, family }, callback);
+    }
+  };
 }
 
 function resolveDatabaseConfig() {
@@ -24,12 +43,17 @@ function resolveDatabaseConfig() {
     process.env.DB_SSL ?? process.env.SUPABASE_DB_SSL,
     isSupabaseConnection
   );
+  const ipFamily = parseIpFamily(
+    process.env.DB_IP_FAMILY ?? process.env.SUPABASE_DB_IP_FAMILY,
+    isSupabaseConnection ? 4 : undefined
+  );
 
   const baseConfig = {
     ssl: buildSslConfig(sslEnabled),
     max: Number(process.env.DB_POOL_MAX || 10),
     idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS || 30000),
     connectionTimeoutMillis: Number(process.env.DB_CONNECTION_TIMEOUT_MS || 10000),
+    ...buildLookupConfig(ipFamily),
   };
 
   if (connectionString) {
