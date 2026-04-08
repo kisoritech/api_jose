@@ -112,6 +112,8 @@ document.getElementById('btnLogin').addEventListener('click', async () => {
   if (response.ok && response.body?.token) {
     setToken(response.body.token);
     showStatus('Login bem sucedido', 'success');
+  } else if (response.body?.error) {
+    showStatus(response.body.error, 'error');
   } else {
     showStatus('Falha no login', 'error');
   }
@@ -138,6 +140,8 @@ document.getElementById('btnRegister').addEventListener('click', async () => {
   if (response.ok && response.body?.token) {
     setToken(response.body.token);
     showStatus('Registro realizado', 'success');
+  } else if (response.body?.error) {
+    showStatus(response.body.error, 'error');
   } else if (response.error) {
     showStatus(response.error, 'error');
   } else {

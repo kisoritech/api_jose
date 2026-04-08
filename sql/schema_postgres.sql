@@ -4,7 +4,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- enums definitions
-CREATE TYPE perfil_usuario AS ENUM ('admin','gerente','vendedor','dev');
+CREATE TYPE perfil_usuario AS ENUM ('admin','gerente','vendedor');
 CREATE TYPE tipo_produto_enum AS ENUM ('venda','aluguel','ambos');
 CREATE TYPE tipo_transacao AS ENUM ('entrada','saida');
 CREATE TYPE tipo_pessoa_enum AS ENUM ('fisica','juridica');

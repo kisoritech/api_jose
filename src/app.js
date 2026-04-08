@@ -42,6 +42,9 @@ app.use(express.json());
 
 // Servir arquivos estáticos para facilitar testes via browser
 app.use(express.static(path.join(__dirname, '..', 'public')));
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end();
+});
 
 // Rotas
 app.use('/', legacyRoutes);
