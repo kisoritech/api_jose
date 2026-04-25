@@ -31,6 +31,24 @@ class LocacaoController {
       res.status(201).json(result);
     } catch (err) { next(err); }
   }
+
+  async atualizarStatus(req, res, next) {
+    try {
+      const result = await LocacaoService.atualizarStatusLocacao(
+        req.params.id,
+        req.body,
+        req.user.id
+      );
+
+      if (!result) {
+        return res.status(404).json({ error: 'Locacao nao encontrada.' });
+      }
+
+      return res.json(result);
+    } catch (err) {
+      return next(err);
+    }
+  }
 }
 
 module.exports = new LocacaoController();

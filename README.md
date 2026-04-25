@@ -33,6 +33,7 @@ Esta API foi ajustada para trabalhar de forma mais consistente com PostgreSQL, i
 - criacao automatica de `locacao_itens`
 - geracao automatica de `transacoes`
 - geracao automatica de `financeiro_clientes`
+- atualizacao de status com reflexos automaticos em estoque, financeiro e prorrogacoes
 - listagem e detalhe de locacoes na API
 
 ### 4. Dashboard, relatorios e auditoria
@@ -88,6 +89,17 @@ Fluxo:
 5. registra movimento em `transacoes`
 6. garante o lancamento em `financeiro_clientes`
 7. retorna a locacao consolidada
+
+### Status da Locacao
+
+`PUT /api/locacoes/:id/status`
+
+Fluxo:
+
+1. recebe o novo `status` da locacao
+2. valida se a locacao pode mudar para esse status
+3. aplica os reflexos automaticos em `locacoes`, `locacao_itens`, `transacoes`, `financeiro_clientes` e `locacao_prorrogacoes`
+4. retorna a locacao consolidada com `itens` e `prorrogacoes`
 
 ## Estrutura do Projeto
 
@@ -251,6 +263,7 @@ curl -X POST http://localhost:3000/api/auth/login ^
 - `GET /api/locacoes`
 - `GET /api/locacoes/:id`
 - `POST /api/locacoes`
+- `PUT /api/locacoes/:id/status`
 
 ### Dashboard
 
@@ -630,6 +643,49 @@ curl -X POST http://localhost:3000/salvar_venda ^
 }
 ```
 
+### Atualizar status da locacao
+
+Payload base:
+
+```json
+{
+  "status": "ativa"
+}
+```
+
+Status suportados:
+
+- `ativa`: confirma o recebimento financeiro da locacao e marca o debito em `financeiro_clientes` como `pago`
+- `devolvida`: preenche `data_devolucao` automaticamente e registra a entrada do produto no estoque sem criar ajuste financeiro
+- `cancelada`: devolve o produto ao estoque, cancela o debito da locacao e cria um credito de reembolso para o cliente
+- `atrasada`: exige `nova_data_prevista_devolucao` e gera uma linha em `locacao_prorrogacoes`, atualizando tambem o novo prazo da locacao
+
+Exemplo para devolucao:
+
+```json
+{
+  "status": "devolvida"
+}
+```
+
+Exemplo para cancelamento:
+
+```json
+{
+  "status": "cancelada"
+}
+```
+
+Exemplo para atraso com prorrogacao:
+
+```json
+{
+  "status": "atrasada",
+  "nova_data_prevista_devolucao": "2026-04-10T10:00:00Z",
+  "motivo": "Cliente solicitou mais dias de uso"
+}
+```
+
 ## Integracoes Entre Tabelas
 
 Com a migration aplicada, a API passa a refletir automaticamente:
@@ -641,6 +697,14 @@ Com a migration aplicada, a API passa a refletir automaticamente:
 - `locacoes` -> `locacao_itens`
 - `locacoes` -> `transacoes`
 - `locacoes` -> `financeiro_clientes`
+- `locacoes` -> `locacao_prorrogacoes` ao atualizar para `atrasada`
+
+## Regras de Status da Locacao
+
+- `ativa` e o status padrao na criacao, e a rota de atualizacao pode ser usada para confirmar o recebimento financeiro da locacao
+- `devolvida` registra `data_devolucao` automaticamente e devolve o item ao estoque com uma transacao de entrada
+- `cancelada` devolve o item ao estoque, cancela o debito original e cria um credito de reembolso para o cliente
+- `atrasada` cria a prorrogacao, atualiza o novo prazo em `locacoes` e `locacao_itens`, e ajusta o vencimento financeiro da locacao
 
 ## Relatorios Completos do Dashboard
 
