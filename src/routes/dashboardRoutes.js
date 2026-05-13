@@ -47,6 +47,18 @@ router.get('/resumo', async (req, res) => {
         (SELECT COUNT(*) FROM produtos WHERE ativo = true) AS total_produtos,
         (SELECT COUNT(*) FROM produtos WHERE quantidade > 0 AND ativo = true) AS produtos_disponiveis,
         COALESCE((SELECT SUM(total_final) FROM vendas WHERE status = 'concluida'), 0) AS faturamento_total,
+        COALESCE((
+          SELECT SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)))
+          FROM vendas
+          WHERE status = 'concluida'
+            AND LOWER(forma_pagamento::text) = 'pix'
+        ), 0) AS total_pix,
+        COALESCE((
+          SELECT SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)))
+          FROM vendas
+          WHERE status = 'concluida'
+            AND LOWER(forma_pagamento::text) IN ('dinheiro', 'cash')
+        ), 0) AS total_dinheiro,
         COALESCE((SELECT COUNT(*) FROM locacoes WHERE status IN ('ativa', 'atrasada')), 0) AS locacoes_ativas
     `);
 

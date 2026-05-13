@@ -268,7 +268,7 @@ curl -X POST http://localhost:3000/api/auth/login ^
 ### Dashboard
 
 #### Resumos Gerais
-- `GET /api/dashboard/resumo`
+- `GET /api/dashboard/resumo` - inclui totais gerais e totais recebidos por PIX e dinheiro
 - `GET /api/dashboard/estoque`
 - `GET /api/dashboard/estoque-resumido`
 - `GET /api/dashboard/resumo-operacional`
@@ -285,6 +285,8 @@ curl -X POST http://localhost:3000/api/auth/login ^
 #### Financeiro Completo (Novo)
 - `GET /api/dashboard/financeiro-completo` - Análise financeira completa com PIX, Dinheiro e comparações
 - `GET /api/dashboard/saldo-caixa-real` - Saldo de caixa em tempo real
+- `GET /dashboard/financeiro-completo` - alias compativel sem prefixo `/api`
+- `GET /financeiro-completo` - alias direto para consultas e testes
 
 #### Relatórios Completos
 - `GET /api/dashboard/financeiro-origens`
@@ -468,6 +470,20 @@ Resposta exemplo:
 ```bash
 curl -X GET http://localhost:3000/api/dashboard/resumo ^
   -H "Authorization: Bearer SEU_TOKEN"
+```
+
+Resposta exemplo:
+
+```json
+{
+  "total_clientes": "12",
+  "total_produtos": "30",
+  "produtos_disponiveis": "24",
+  "faturamento_total": "12500.00",
+  "total_pix": "8200.00",
+  "total_dinheiro": "2300.00",
+  "locacoes_ativas": "4"
+}
 ```
 
 ### 10. Consultar movimentacao geral
@@ -721,6 +737,8 @@ Com a migration aplicada, a API passa a refletir automaticamente:
 Use estes endpoints quando precisar de leitura mais detalhada e mais exata para painel administrativo:
 
 - `GET /api/dashboard/financeiro-completo`
+- `GET /dashboard/financeiro-completo`
+- `GET /financeiro-completo`
 - `GET /api/dashboard/produtos-relatorio`
 - `GET /api/dashboard/vendas-relatorio`
 - `GET /api/dashboard/locacoes-relatorio`
@@ -732,6 +750,16 @@ Use estes endpoints quando precisar de leitura mais detalhada e mais exata para 
 
 ```bash
 curl -X GET http://localhost:3000/api/dashboard/financeiro-completo ^
+  -H "Authorization: Bearer SEU_TOKEN"
+```
+
+Aliases equivalentes para compatibilidade:
+
+```bash
+curl -X GET http://localhost:3000/dashboard/financeiro-completo ^
+  -H "Authorization: Bearer SEU_TOKEN"
+
+curl -X GET http://localhost:3000/financeiro-completo ^
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
