@@ -267,22 +267,33 @@ curl -X POST http://localhost:3000/api/auth/login ^
 
 ### Dashboard
 
+#### Resumos Gerais
 - `GET /api/dashboard/resumo`
 - `GET /api/dashboard/estoque`
 - `GET /api/dashboard/estoque-resumido`
+- `GET /api/dashboard/resumo-operacional`
+- `GET /api/dashboard/movimentacao-geral`
+
+#### Detalhes Operacionais
 - `GET /api/dashboard/vendas-detalhadas`
 - `GET /api/dashboard/produtos-mais-vendidos`
 - `GET /api/dashboard/locacoes-ativas`
 - `GET /api/dashboard/financeiro-clientes`
 - `GET /api/dashboard/cliente-historico/:clienteId`
 - `GET /api/dashboard/venda-itens-margem`
-- `GET /api/dashboard/movimentacao-geral`
-- `GET /api/dashboard/resumo-operacional`
+
+#### Financeiro Completo (Novo)
+- `GET /api/dashboard/financeiro-completo` - Análise financeira completa com PIX, Dinheiro e comparações
+- `GET /api/dashboard/analise-pix-dinheiro` - Análise detalhada de PIX vs Dinheiro
+- `GET /api/dashboard/saldo-caixa-real` - Saldo de caixa em tempo real
+
+#### Relatórios Completos
 - `GET /api/dashboard/financeiro-origens`
-- `GET /api/dashboard/financeiro-completo`
 - `GET /api/dashboard/produtos-relatorio`
 - `GET /api/dashboard/vendas-relatorio`
 - `GET /api/dashboard/locacoes-relatorio`
+
+#### Auditoria
 - `GET /api/dashboard/auditoria-integracao`
 
 ## Rotas Legadas
@@ -715,6 +726,279 @@ Use estes endpoints quando precisar de leitura mais detalhada e mais exata para 
 - `GET /api/dashboard/vendas-relatorio`
 - `GET /api/dashboard/locacoes-relatorio`
 - `GET /api/dashboard/auditoria-integracao`
+
+## Novos Endpoints de Financeiro Completo
+
+### 19. Financeiro Completo com Análise de PIX e Dinheiro
+
+```bash
+curl -X GET http://localhost:3000/api/dashboard/financeiro-completo ^
+  -H "Authorization: Bearer SEU_TOKEN"
+```
+
+Retorna estrutura completa de financeiro:
+
+```json
+{
+  "resumo": {
+    "total_lancamentos": "50",
+    "total_debitos": "15000.00",
+    "total_creditos": "3000.00",
+    "total_pendente": "5000.00",
+    "total_pago": "13000.00",
+    "total_cancelado": "0.00"
+  },
+  "por_origem": [
+    {
+      "origem": "venda",
+      "status": "pago",
+      "total_lancamentos": "25",
+      "valor_total": "10000.00"
+    }
+  ],
+  "por_cliente": [
+    {
+      "cliente_id": 2,
+      "nome": "Empresa XYZ",
+      "total_lancamentos": "8",
+      "pendente": "500.00",
+      "pago": "3500.00",
+      "saldo": "3000.00"
+    }
+  ],
+  "ultimos_lancamentos": [],
+  "analise_pix": {
+    "total_transacoes_pix": "35",
+    "valor_total_pix": "8500.00",
+    "valor_medio_pix": "242.86",
+    "maior_transacao_pix": "850.00",
+    "menor_transacao_pix": "50.00",
+    "pix_recebido": "32",
+    "pix_pendente": "3",
+    "pix_valor_recebido": "8200.00",
+    "pix_valor_pendente": "300.00"
+  },
+  "analise_dinheiro": {
+    "total_transacoes_dinheiro": "15",
+    "valor_total_dinheiro": "4500.00",
+    "valor_medio_dinheiro": "300.00",
+    "maior_transacao_dinheiro": "950.00",
+    "menor_transacao_dinheiro": "100.00",
+    "dinheiro_concluido": "14",
+    "dinheiro_nao_concluido": "1",
+    "dinheiro_valor_concluido": "4350.00"
+  },
+  "comparacao_metodos": {
+    "total_pix": "8500.00",
+    "total_dinheiro": "4500.00",
+    "total_cartao": "2500.00",
+    "total_outros": "0.00",
+    "qtd_pix": "35",
+    "qtd_dinheiro": "15",
+    "qtd_cartao": "10"
+  },
+  "fluxo_caixa_diario": [
+    {
+      "data": "2026-05-12",
+      "total_transacoes": "5",
+      "valor_dia": "1200.00",
+      "transacoes_pix": "3",
+      "transacoes_dinheiro": "2",
+      "valor_pix_dia": "750.00",
+      "valor_dinheiro_dia": "450.00"
+    }
+  ],
+  "saldo_por_cliente": [
+    {
+      "cliente_id": 2,
+      "nome": "Empresa XYZ",
+      "total_pago_pix": "3500.00",
+      "total_pago_dinheiro": "1500.00",
+      "total_pago_geral": "5000.00",
+      "qtd_pix": "8",
+      "qtd_dinheiro": "4"
+    }
+  ],
+  "tendencia_pagamentos": [
+    {
+      "mes": "2026-05",
+      "transacoes_pix": "35",
+      "transacoes_dinheiro": "15",
+      "valor_pix_mes": "8500.00",
+      "valor_dinheiro_mes": "4500.00"
+    }
+  ]
+}
+```
+
+**Elementos principais:**
+
+- **resumo**: Total geral, débitos/créditos, status de pagamento
+- **analise_pix**: Estatísticas completas de transações PIX
+- **analise_dinheiro**: Estatísticas completas de transações em dinheiro
+- **comparacao_metodos**: PIX vs Dinheiro vs Cartão vs Outros
+- **fluxo_caixa_diario**: Movimentação diária dos últimos 30 dias
+- **saldo_por_cliente**: Top 30 clientes com separação por método
+- **tendencia_pagamentos**: Últimos 12 meses de pagamentos
+
+### 20. Análise Detalhada PIX vs Dinheiro
+
+```bash
+curl -X GET http://localhost:3000/api/dashboard/analise-pix-dinheiro ^
+  -H "Authorization: Bearer SEU_TOKEN"
+```
+
+Retorna análise detalhada:
+
+```json
+{
+  "detalhes_pix": [
+    {
+      "venda_id": 15,
+      "criado_em": "2026-05-12T10:30:00Z",
+      "status": "concluida",
+      "valor_pix": "250.50",
+      "cliente_nome": "Cliente A",
+      "cpf": "123.456.789-00",
+      "vendedor": "Jose",
+      "dias_desde_transacao": 0.5
+    }
+  ],
+  "detalhes_dinheiro": [
+    {
+      "venda_id": 14,
+      "criado_em": "2026-05-12T09:15:00Z",
+      "status": "concluida",
+      "valor_dinheiro": "400.00",
+      "cliente_nome": "Cliente B",
+      "cpf": "987.654.321-00",
+      "vendedor": "Jose",
+      "dias_desde_transacao": 0.6
+    }
+  ],
+  "performance": [
+    {
+      "metodo": "pix",
+      "total_transacoes": "35",
+      "valor_total": "8500.00",
+      "valor_medio": "242.86",
+      "transacoes_concluidas": "32",
+      "taxa_sucesso": "91.43"
+    },
+    {
+      "metodo": "dinheiro",
+      "total_transacoes": "15",
+      "valor_total": "4500.00",
+      "valor_medio": "300.00",
+      "transacoes_concluidas": "14",
+      "taxa_sucesso": "93.33"
+    }
+  ],
+  "recebimentos_pix_7dias": [
+    {
+      "data_recebimento": "2026-05-12",
+      "qtd_transacoes": "5",
+      "valor_recebido": "1250.00",
+      "qtd_concluidas": "5"
+    }
+  ],
+  "recebimentos_dinheiro_7dias": [
+    {
+      "data_recebimento": "2026-05-12",
+      "qtd_transacoes": "2",
+      "valor_recebido": "600.00",
+      "qtd_concluidas": "2"
+    }
+  ],
+  "top_clientes_pix": [
+    {
+      "cliente_id": 2,
+      "nome": "Empresa XYZ",
+      "qtd_transacoes_pix": "12",
+      "total_gasto_pix": "3000.00"
+    }
+  ],
+  "top_clientes_dinheiro": [
+    {
+      "cliente_id": 3,
+      "nome": "Cliente ABC",
+      "qtd_transacoes_dinheiro": "8",
+      "total_gasto_dinheiro": "2400.00"
+    }
+  ]
+}
+```
+
+**Elementos principais:**
+
+- **detalhes_pix**: Últimas 50 transações PIX com cliente e vendedor
+- **detalhes_dinheiro**: Últimas 50 transações em dinheiro
+- **performance**: Comparação de taxa de sucesso entre os métodos
+- **recebimentos_pix_7dias**: Fluxo PIX dos últimos 7 dias
+- **recebimentos_dinheiro_7dias**: Fluxo dinheiro dos últimos 7 dias
+- **top_clientes_pix**: Top 10 clientes que mais usam PIX
+- **top_clientes_dinheiro**: Top 10 clientes que mais usam dinheiro
+
+### 21. Saldo de Caixa em Tempo Real
+
+```bash
+curl -X GET http://localhost:3000/api/dashboard/saldo-caixa-real ^
+  -H "Authorization: Bearer SEU_TOKEN"
+```
+
+Retorna saldo atualizado:
+
+```json
+{
+  "saldo_caixa": {
+    "caixa_pix_recebido": "8200.00",
+    "caixa_dinheiro": "4350.00",
+    "caixa_cartao": "2300.00",
+    "saldo_total_recebido": "14850.00",
+    "saldo_pendente_cancelado": "300.00"
+  },
+  "entradas_pix_hoje": {
+    "qtd_pix_hoje": "3",
+    "valor_pix_hoje": "750.00"
+  },
+  "entradas_dinheiro_hoje": {
+    "qtd_dinheiro_hoje": "2",
+    "valor_dinheiro_hoje": "450.00"
+  },
+  "resumo_por_hora_hoje": [
+    {
+      "hora": 9,
+      "transacoes_pix": "2",
+      "transacoes_dinheiro": "0",
+      "valor_pix_hora": "500.00",
+      "valor_dinheiro_hora": "0.00"
+    },
+    {
+      "hora": 10,
+      "transacoes_pix": "1",
+      "transacoes_dinheiro": "2",
+      "valor_pix_hora": "250.00",
+      "valor_dinheiro_hora": "450.00"
+    }
+  ],
+  "meta_vs_realizado_30dias": [
+    {
+      "data": "2026-05-12",
+      "arrecadacao_pix": "750.00",
+      "arrecadacao_dinheiro": "450.00",
+      "arrecadacao_total": "1200.00"
+    }
+  ]
+}
+```
+
+**Elementos principais:**
+
+- **saldo_caixa**: Saldo total acumulado de todos os métodos
+- **entradas_pix_hoje**: Recebimentos PIX do dia atual
+- **entradas_dinheiro_hoje**: Recebimentos em dinheiro do dia atual
+- **resumo_por_hora_hoje**: Movimentação por hora do dia
+- **meta_vs_realizado_30dias**: Comparação de arrecadação dos últimos 30 dias
 
 ## Auditoria e Conferencia
 

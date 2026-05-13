@@ -413,11 +413,321 @@ router.get('/financeiro-completo', async (req, res) => {
       LIMIT 50
     `);
 
+    // Análise de PIX
+    const pixResult = await pool.query(`
+      SELECT
+        COUNT(*) AS total_transacoes_pix,
+        COALESCE(SUM(valor), 0) AS valor_total_pix,
+        COALESCE(AVG(valor), 0) AS valor_medio_pix,
+        COALESCE(MAX(valor), 0) AS maior_transacao_pix,
+        COALESCE(MIN(valor), 0) AS menor_transacao_pix,
+        COUNT(*) FILTER (WHERE status = 'pago') AS pix_recebido,
+        COUNT(*) FILTER (WHERE status = 'pendente') AS pix_pendente,
+        COALESCE(SUM(CASE WHEN status = 'pago' THEN valor ELSE 0 END), 0) AS pix_valor_recebido,
+        COALESCE(SUM(CASE WHEN status = 'pendente' THEN valor ELSE 0 END), 0) AS pix_valor_pendente
+      FROM vendas
+      WHERE forma_pagamento = 'pix' OR forma_pagamento = 'PIX'
+    `);
+
+    // Análise de Dinheiro
+    const dinheiroResult = await pool.query(`
+      SELECT
+        COUNT(*) AS total_transacoes_dinheiro,
+        COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_total_dinheiro,
+        COALESCE(AVG(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_medio_dinheiro,
+        COALESCE(MAX(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS maior_transacao_dinheiro,
+        COALESCE(MIN(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS menor_transacao_dinheiro,
+        COUNT(*) FILTER (WHERE status = 'concluida') AS dinheiro_concluido,
+        COUNT(*) FILTER (WHERE status IN ('pendente', 'cancelada')) AS dinheiro_nao_concluido,
+        COALESCE(SUM(CASE WHEN status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS dinheiro_valor_concluido
+      FROM vendas
+      WHERE forma_pagamento = 'dinheiro' OR forma_pagamento = 'DINHEIRO' OR forma_pagamento = 'cash'
+    `);
+
+    // Comparação PIX vs Dinheiro
+    const comparacaoResult = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN forma_pagamento IN ('pix', 'PIX') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS total_pix,
+        COALESCE(SUM(CASE WHEN forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS total_dinheiro,
+        COALESCE(SUM(CASE WHEN forma_pagamento IN ('cartao', 'CARTAO', 'card') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS total_cartao,
+        COALESCE(SUM(CASE WHEN forma_pagamento NOT IN ('pix', 'PIX', 'dinheiro', 'DINHEIRO', 'cash', 'cartao', 'CARTAO', 'card') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS total_outros,
+        COUNT(*) FILTER (WHERE forma_pagamento IN ('pix', 'PIX')) AS qtd_pix,
+        COUNT(*) FILTER (WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash')) AS qtd_dinheiro,
+        COUNT(*) FILTER (WHERE forma_pagamento IN ('cartao', 'CARTAO', 'card')) AS qtd_cartao
+      FROM vendas
+      WHERE status = 'concluida'
+    `);
+
+    // Fluxo de caixa diário (últimos 30 dias)
+    const fluxoCaixaResult = await pool.query(`
+      SELECT
+        DATE(criado_em) AS data,
+        COUNT(*) AS total_transacoes,
+        COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_dia,
+        COUNT(*) FILTER (WHERE forma_pagamento IN ('pix', 'PIX')) AS transacoes_pix,
+        COUNT(*) FILTER (WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash')) AS transacoes_dinheiro,
+        COALESCE(SUM(CASE WHEN forma_pagamento IN ('pix', 'PIX') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_pix_dia,
+        COALESCE(SUM(CASE WHEN forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_dinheiro_dia
+      FROM vendas
+      WHERE status = 'concluida' AND criado_em >= NOW() - INTERVAL '30 days'
+      GROUP BY DATE(criado_em)
+      ORDER BY data DESC
+    `);
+
+    // Saldo por cliente - PIX e Dinheiro
+    const saldoClienteResult = await pool.query(`
+      SELECT
+        c.id AS cliente_id,
+        c.nome,
+        COALESCE(SUM(CASE WHEN v.forma_pagamento IN ('pix', 'PIX') AND v.status = 'concluida' THEN COALESCE(v.total_final, v.valor_total + COALESCE(v.frete_valor, 0)) ELSE 0 END), 0) AS total_pago_pix,
+        COALESCE(SUM(CASE WHEN v.forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') AND v.status = 'concluida' THEN COALESCE(v.total_final, v.valor_total + COALESCE(v.frete_valor, 0)) ELSE 0 END), 0) AS total_pago_dinheiro,
+        COALESCE(SUM(CASE WHEN v.status = 'concluida' THEN COALESCE(v.total_final, v.valor_total + COALESCE(v.frete_valor, 0)) ELSE 0 END), 0) AS total_pago_geral,
+        COUNT(*) FILTER (WHERE v.forma_pagamento IN ('pix', 'PIX') AND v.status = 'concluida') AS qtd_pix,
+        COUNT(*) FILTER (WHERE v.forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') AND v.status = 'concluida') AS qtd_dinheiro
+      FROM clientes c
+      LEFT JOIN vendas v ON v.cliente_id = c.id
+      GROUP BY c.id, c.nome
+      HAVING COUNT(*) > 0
+      ORDER BY total_pago_geral DESC
+      LIMIT 30
+    `);
+
+    // Tendência de uso PIX vs Dinheiro (últimos 12 meses)
+    const tendenciaResult = await pool.query(`
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', criado_em), 'YYYY-MM') AS mes,
+        COUNT(*) FILTER (WHERE forma_pagamento IN ('pix', 'PIX')) AS transacoes_pix,
+        COUNT(*) FILTER (WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash')) AS transacoes_dinheiro,
+        COALESCE(SUM(CASE WHEN forma_pagamento IN ('pix', 'PIX') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_pix_mes,
+        COALESCE(SUM(CASE WHEN forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_dinheiro_mes
+      FROM vendas
+      WHERE criado_em >= NOW() - INTERVAL '12 months'
+      GROUP BY DATE_TRUNC('month', criado_em)
+      ORDER BY mes DESC
+    `);
+
     return {
       resumo: resumoResult.rows[0] || {},
       por_origem: porOrigemResult.rows,
       por_cliente: porClienteResult.rows,
-      ultimos_lancamentos: ultimosLancamentosResult.rows
+      ultimos_lancamentos: ultimosLancamentosResult.rows,
+      analise_pix: pixResult.rows[0] || {},
+      analise_dinheiro: dinheiroResult.rows[0] || {},
+      comparacao_metodos: comparacaoResult.rows[0] || {},
+      fluxo_caixa_diario: fluxoCaixaResult.rows,
+      saldo_por_cliente: saldoClienteResult.rows,
+      tendencia_pagamentos: tendenciaResult.rows
+    };
+  });
+
+  if (data === null) return;
+  res.json(data);
+});
+
+router.get('/analise-pix-dinheiro', async (req, res) => {
+  const data = await safeRun(res, 'analise PIX e dinheiro', async () => {
+    // Detalhes PIX - últimas 50 transações
+    const detalhePixResult = await pool.query(`
+      SELECT
+        v.id AS venda_id,
+        v.criado_em,
+        v.status,
+        COALESCE(v.total_final, v.valor_total + COALESCE(v.frete_valor, 0)) AS valor_pix,
+        c.nome AS cliente_nome,
+        c.cpf,
+        u.nome AS vendedor,
+        EXTRACT(EPOCH FROM (NOW() - v.criado_em)) / 86400 AS dias_desde_transacao
+      FROM vendas v
+      LEFT JOIN clientes c ON c.id = v.cliente_id
+      LEFT JOIN usuarios u ON u.id = v.usuario_id
+      WHERE forma_pagamento IN ('pix', 'PIX')
+      ORDER BY v.criado_em DESC
+      LIMIT 50
+    `);
+
+    // Detalhes Dinheiro - últimas 50 transações
+    const detalhedinheiroResult = await pool.query(`
+      SELECT
+        v.id AS venda_id,
+        v.criado_em,
+        v.status,
+        COALESCE(v.total_final, v.valor_total + COALESCE(v.frete_valor, 0)) AS valor_dinheiro,
+        c.nome AS cliente_nome,
+        c.cpf,
+        u.nome AS vendedor,
+        EXTRACT(EPOCH FROM (NOW() - v.criado_em)) / 86400 AS dias_desde_transacao
+      FROM vendas v
+      LEFT JOIN clientes c ON c.id = v.cliente_id
+      LEFT JOIN usuarios u ON u.id = v.usuario_id
+      WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash')
+      ORDER BY v.criado_em DESC
+      LIMIT 50
+    `);
+
+    // Estatísticas de performance - PIX vs Dinheiro
+    const performanceResult = await pool.query(`
+      SELECT
+        'pix' AS metodo,
+        COUNT(*) AS total_transacoes,
+        COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_total,
+        COALESCE(AVG(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_medio,
+        COUNT(*) FILTER (WHERE status = 'concluida') AS transacoes_concluidas,
+        ROUND(((COUNT(*) FILTER (WHERE status = 'concluida')::numeric / COUNT(*)) * 100)::numeric, 2) AS taxa_sucesso
+      FROM vendas
+      WHERE forma_pagamento IN ('pix', 'PIX')
+
+      UNION ALL
+
+      SELECT
+        'dinheiro' AS metodo,
+        COUNT(*) AS total_transacoes,
+        COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_total,
+        COALESCE(AVG(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_medio,
+        COUNT(*) FILTER (WHERE status = 'concluida') AS transacoes_concluidas,
+        ROUND(((COUNT(*) FILTER (WHERE status = 'concluida')::numeric / COUNT(*)) * 100)::numeric, 2) AS taxa_sucesso
+      FROM vendas
+      WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash')
+    `);
+
+    // Recebimentos PIX - últimos 7 dias
+    const recebimentosPixResult = await pool.query(`
+      SELECT
+        DATE(criado_em) AS data_recebimento,
+        COUNT(*) AS qtd_transacoes,
+        COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_recebido,
+        COUNT(*) FILTER (WHERE status = 'concluida') AS qtd_concluidas
+      FROM vendas
+      WHERE forma_pagamento IN ('pix', 'PIX') AND criado_em >= NOW() - INTERVAL '7 days'
+      GROUP BY DATE(criado_em)
+      ORDER BY data_recebimento DESC
+    `);
+
+    // Recebimentos Dinheiro - últimos 7 dias
+    const recebimentosDinheiroResult = await pool.query(`
+      SELECT
+        DATE(criado_em) AS data_recebimento,
+        COUNT(*) AS qtd_transacoes,
+        COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_recebido,
+        COUNT(*) FILTER (WHERE status = 'concluida') AS qtd_concluidas
+      FROM vendas
+      WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') AND criado_em >= NOW() - INTERVAL '7 days'
+      GROUP BY DATE(criado_em)
+      ORDER BY data_recebimento DESC
+    `);
+
+    // Top 10 clientes - PIX
+    const topPixResult = await pool.query(`
+      SELECT
+        c.id AS cliente_id,
+        c.nome,
+        COUNT(v.id) AS qtd_transacoes_pix,
+        COALESCE(SUM(COALESCE(v.total_final, v.valor_total + COALESCE(v.frete_valor, 0))), 0) AS total_gasto_pix
+      FROM clientes c
+      LEFT JOIN vendas v ON v.cliente_id = c.id AND v.forma_pagamento IN ('pix', 'PIX')
+      WHERE v.id IS NOT NULL
+      GROUP BY c.id, c.nome
+      ORDER BY total_gasto_pix DESC
+      LIMIT 10
+    `);
+
+    // Top 10 clientes - Dinheiro
+    const topDinheiroResult = await pool.query(`
+      SELECT
+        c.id AS cliente_id,
+        c.nome,
+        COUNT(v.id) AS qtd_transacoes_dinheiro,
+        COALESCE(SUM(COALESCE(v.total_final, v.valor_total + COALESCE(v.frete_valor, 0))), 0) AS total_gasto_dinheiro
+      FROM clientes c
+      LEFT JOIN vendas v ON v.cliente_id = c.id AND v.forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash')
+      WHERE v.id IS NOT NULL
+      GROUP BY c.id, c.nome
+      ORDER BY total_gasto_dinheiro DESC
+      LIMIT 10
+    `);
+
+    return {
+      detalhes_pix: detalhePixResult.rows,
+      detalhes_dinheiro: detalhedinheiroResult.rows,
+      performance: performanceResult.rows,
+      recebimentos_pix_7dias: recebimentosPixResult.rows,
+      recebimentos_dinheiro_7dias: recebimentosDinheiroResult.rows,
+      top_clientes_pix: topPixResult.rows,
+      top_clientes_dinheiro: topDinheiroResult.rows
+    };
+  });
+
+  if (data === null) return;
+  res.json(data);
+});
+
+router.get('/saldo-caixa-real', async (req, res) => {
+  const data = await safeRun(res, 'saldo de caixa', async () => {
+    // Saldo atual de caixa
+    const saldoCaixaResult = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN forma_pagamento IN ('pix', 'PIX') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS caixa_pix_recebido,
+        COALESCE(SUM(CASE WHEN forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS caixa_dinheiro,
+        COALESCE(SUM(CASE WHEN forma_pagamento IN ('cartao', 'CARTAO', 'card') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS caixa_cartao,
+        COALESCE(SUM(CASE WHEN status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS saldo_total_recebido,
+        COALESCE(SUM(CASE WHEN status IN ('pendente', 'cancelada') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS saldo_pendente_cancelado
+      FROM vendas
+    `);
+
+    // Entradas do dia - PIX
+    const entradasPixHojeResult = await pool.query(`
+      SELECT
+        COUNT(*) AS qtd_pix_hoje,
+        COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_pix_hoje
+      FROM vendas
+      WHERE forma_pagamento IN ('pix', 'PIX')
+        AND DATE(criado_em) = CURRENT_DATE
+        AND status = 'concluida'
+    `);
+
+    // Entradas do dia - Dinheiro
+    const entradasDinheiroHojeResult = await pool.query(`
+      SELECT
+        COUNT(*) AS qtd_dinheiro_hoje,
+        COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_dinheiro_hoje
+      FROM vendas
+      WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash')
+        AND DATE(criado_em) = CURRENT_DATE
+        AND status = 'concluida'
+    `);
+
+    // Resumo por hora - hoje
+    const resumoPorHoraResult = await pool.query(`
+      SELECT
+        EXTRACT(HOUR FROM criado_em)::INT AS hora,
+        COUNT(*) FILTER (WHERE forma_pagamento IN ('pix', 'PIX')) AS transacoes_pix,
+        COUNT(*) FILTER (WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash')) AS transacoes_dinheiro,
+        COALESCE(SUM(CASE WHEN forma_pagamento IN ('pix', 'PIX') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_pix_hora,
+        COALESCE(SUM(CASE WHEN forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_dinheiro_hora
+      FROM vendas
+      WHERE DATE(criado_em) = CURRENT_DATE
+      GROUP BY EXTRACT(HOUR FROM criado_em)
+      ORDER BY hora
+    `);
+
+    // Meta vs Realizado - Últimos 30 dias
+    const metaVsRealizadoResult = await pool.query(`
+      SELECT
+        DATE(criado_em) AS data,
+        COALESCE(SUM(CASE WHEN forma_pagamento IN ('pix', 'PIX') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS arrecadacao_pix,
+        COALESCE(SUM(CASE WHEN forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS arrecadacao_dinheiro,
+        COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS arrecadacao_total
+      FROM vendas
+      WHERE criado_em >= NOW() - INTERVAL '30 days' AND status = 'concluida'
+      GROUP BY DATE(criado_em)
+      ORDER BY data DESC
+    `);
+
+    return {
+      saldo_caixa: saldoCaixaResult.rows[0] || {},
+      entradas_pix_hoje: entradasPixHojeResult.rows[0] || {},
+      entradas_dinheiro_hoje: entradasDinheiroHojeResult.rows[0] || {},
+      resumo_por_hora_hoje: resumoPorHoraResult.rows,
+      meta_vs_realizado_30dias: metaVsRealizadoResult.rows
     };
   });
 
