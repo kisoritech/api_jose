@@ -170,7 +170,6 @@
       <button class="ghost quick-action" data-endpoint="/api/dashboard/movimentacao-geral">Movimentacao Geral</button>
       <button class="ghost quick-action" data-endpoint="/api/dashboard/resumo-operacional">Resumo Operacional</button>
       <button class="ghost quick-action" data-endpoint="/api/dashboard/financeiro-completo">Financeiro Completo</button>
-      <button class="ghost quick-action" data-endpoint="/api/dashboard/analise-pix-dinheiro">Analise PIX/Dinheiro</button>
       <button class="ghost quick-action" data-endpoint="/api/dashboard/saldo-caixa-real">Saldo Caixa Real</button>
       <button class="ghost quick-action" data-endpoint="/api/dashboard/financeiro-origens">Financeiro por Origem</button>
       <button class="ghost quick-action" data-endpoint="/api/dashboard/produtos-relatorio">Relatorio de Produtos</button>
@@ -188,19 +187,9 @@
       <small>
         Análise financeira completa com 10 seções: resumo geral, PIX, dinheiro, comparação de métodos, fluxo de caixa diário, saldo por cliente e tendência de pagamentos.
         <br/><br/>
-        <strong>Principais campos:</strong> total_lancamentos, analise_pix, analise_dinheiro, comparacao_metodos, fluxo_caixa_diario, saldo_por_cliente, tendencia_pagamentos
+        <strong>Principais campos:</strong> operacoes, creditos_debitos, detalhes_pix, detalhes_dinheiro, performance_metodos, analise_pix, analise_dinheiro, comparacao_metodos
       </small>
     </div>
-
-    <div class="helper-card">
-      <strong>💳 GET /api/dashboard/analise-pix-dinheiro</strong>
-      <small>
-        Análise detalhada de PIX vs Dinheiro com últimas 50 transações de cada método, performance comparativa, recebimentos dos últimos 7 dias e top 10 clientes por método.
-        <br/><br/>
-        <strong>Principais campos:</strong> detalhes_pix, detalhes_dinheiro, performance, recebimentos_pix_7dias, recebimentos_dinheiro_7dias, top_clientes_pix, top_clientes_dinheiro
-      </small>
-    </div>
-
     <div class="helper-card">
       <strong>💰 GET /api/dashboard/saldo-caixa-real</strong>
       <small>

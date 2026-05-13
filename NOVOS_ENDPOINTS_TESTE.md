@@ -2,7 +2,7 @@
 
 ## ✅ Status das Implementações
 
-Três novos endpoints foram adicionados ao dashboard para análise financeira completa com foco em PIX e Dinheiro.
+Dois endpoints financeiros ficam disponiveis no dashboard. O relatorio detalhado de PIX, dinheiro, creditos e debitos esta concentrado em `/api/dashboard/financeiro-completo`.
 
 ---
 
@@ -14,18 +14,23 @@ GET /api/dashboard/financeiro-completo
 ```
 
 ### O que retorna?
-Uma análise financeira completa com **10 seções de dados**:
+Uma analise financeira completa com dados unificados em um unico endpoint:
 
 1. **resumo** - Total geral de lançamentos
 2. **por_origem** - Agrupamento por origem (venda, locação, etc)
 3. **por_cliente** - Saldo por cliente
 4. **ultimos_lancamentos** - Histórico das 50 últimas transações
-5. **analise_pix** - Estatísticas completas de PIX
-6. **analise_dinheiro** - Estatísticas completas de dinheiro
-7. **comparacao_metodos** - PIX vs Dinheiro vs Cartão vs Outros
-8. **fluxo_caixa_diario** - Movimentação diária (últimos 30 dias)
-9. **saldo_por_cliente** - Top 30 clientes com separação por método
-10. **tendencia_pagamentos** - Últimos 12 meses de pagamentos
+5. **operacoes** - Lista unificada de PIX, dinheiro, creditos e debitos
+6. **creditos_debitos** - Totais por tipo e status financeiro
+7. **detalhes_pix** - Ultimas 50 transacoes PIX com cliente e vendedor
+8. **detalhes_dinheiro** - Ultimas 50 transacoes em dinheiro
+9. **performance_metodos** - Comparacao de taxa de sucesso
+10. **analise_pix** - Estatisticas completas de PIX
+11. **analise_dinheiro** - Estatisticas completas de dinheiro
+12. **comparacao_metodos** - PIX vs Dinheiro vs Cartao vs Outros
+13. **fluxo_caixa_diario** - Movimentacao diaria (ultimos 30 dias)
+14. **saldo_por_cliente** - Top 30 clientes com separacao por metodo
+15. **tendencia_pagamentos** - Ultimos 12 meses de pagamentos
 
 ### Como testar na UI?
 1. Abra a tela de teste em: `http://localhost:3000` (ou seu domínio)
@@ -84,71 +89,6 @@ Uma análise financeira completa com **10 seções de dados**:
   ],
   "saldo_por_cliente": [],
   "tendencia_pagamentos": []
-}
-```
-
----
-
-## 💳 Endpoint 2: Análise PIX vs Dinheiro (Novo)
-
-### URL
-```
-GET /api/dashboard/analise-pix-dinheiro
-```
-
-### O que retorna?
-Análise detalhada com **7 seções**:
-
-1. **detalhes_pix** - Últimas 50 transações PIX com cliente e vendedor
-2. **detalhes_dinheiro** - Últimas 50 transações em dinheiro
-3. **performance** - Comparação de taxa de sucesso
-4. **recebimentos_pix_7dias** - Fluxo PIX dos últimos 7 dias
-5. **recebimentos_dinheiro_7dias** - Fluxo dinheiro dos últimos 7 dias
-6. **top_clientes_pix** - Top 10 clientes que mais usam PIX
-7. **top_clientes_dinheiro** - Top 10 clientes que mais usam dinheiro
-
-### Como testar na UI?
-1. Abra a tela de teste
-2. Clique no botão **"Analise PIX/Dinheiro"** na seção "Atalhos de Consulta"
-
-### Exemplo de Resposta (parcial)
-```json
-{
-  "performance": [
-    {
-      "metodo": "pix",
-      "total_transacoes": "35",
-      "valor_total": "8500.00",
-      "valor_medio": "242.86",
-      "transacoes_concluidas": "32",
-      "taxa_sucesso": "91.43"
-    },
-    {
-      "metodo": "dinheiro",
-      "total_transacoes": "15",
-      "valor_total": "4500.00",
-      "valor_medio": "300.00",
-      "transacoes_concluidas": "14",
-      "taxa_sucesso": "93.33"
-    }
-  ],
-  "recebimentos_pix_7dias": [
-    {
-      "data_recebimento": "2026-05-12",
-      "qtd_transacoes": "5",
-      "valor_recebido": "1250.00",
-      "qtd_concluidas": "5"
-    }
-  ],
-  "top_clientes_pix": [
-    {
-      "cliente_id": 2,
-      "nome": "Empresa XYZ",
-      "qtd_transacoes_pix": "12",
-      "total_gasto_pix": "3000.00"
-    }
-  ],
-  "top_clientes_dinheiro": []
 }
 ```
 
@@ -229,11 +169,6 @@ curl -X GET "http://localhost:3000/api/dashboard/financeiro-completo" \
   -H "Authorization: Bearer SEU_TOKEN"
 ```
 
-### Teste 2: Análise PIX vs Dinheiro
-```bash
-curl -X GET "http://localhost:3000/api/dashboard/analise-pix-dinheiro" \
-  -H "Authorization: Bearer SEU_TOKEN"
-```
 
 ### Teste 3: Saldo Caixa Real
 ```bash
@@ -251,12 +186,6 @@ Use `/api/dashboard/saldo-caixa-real` para acompanhar entradas do dia em tempo r
 ### 2. Comparar Métodos de Pagamento
 Use `/api/dashboard/financeiro-completo` para ver comparação PIX vs Dinheiro com tendências.
 
-### 3. Identificar Top Clientes por Método
-Use `/api/dashboard/analise-pix-dinheiro` para saber quais clientes preferem PIX ou dinheiro.
-
-### 4. Auditar Performance de Recebimentos
-Use `/api/dashboard/analise-pix-dinheiro` para ver taxa de sucesso de cada método.
-
 ---
 
 ## ✅ Checklist de Testes
@@ -265,11 +194,10 @@ Use `/api/dashboard/analise-pix-dinheiro` para ver taxa de sucesso de cada méto
 - [ ] Campo `analise_pix` tem valores esperados
 - [ ] Campo `analise_dinheiro` tem valores esperados
 - [ ] Campo `comparacao_metodos` totaliza corretamente
-- [ ] Endpoint `/analise-pix-dinheiro` retorna últimas 50 transações
-- [ ] Campo `performance` mostra taxa de sucesso > 0%
+- [ ] Campo `performance_metodos` mostra taxa de sucesso > 0%
 - [ ] Endpoint `/saldo-caixa-real` mostra saldo do dia
 - [ ] Campo `resumo_por_hora_hoje` tem dados por hora
-- [ ] Todos os 3 novos botões funcionam na tela de teste
+- [ ] Todos os 2 novos botoes funcionam na tela de teste
 - [ ] Documentação no README está atualizada
 
 ---
@@ -293,7 +221,6 @@ Verifique se as vendas têm a coluna `total_final` ou se os valores estão em `v
 
 ### Arquivo: `src/routes/dashboardRoutes.js`
 - ✅ Expandido endpoint `/financeiro-completo` com 10 seções
-- ✅ Criado novo endpoint `/analise-pix-dinheiro`
 - ✅ Criado novo endpoint `/saldo-caixa-real`
 - ✅ Corrigido erro de sintaxe na linha 737
 
@@ -303,7 +230,7 @@ Verifique se as vendas têm a coluna `total_final` ou se os valores estão em `v
 
 ### Arquivo: `README.md`
 - ✅ Seção Dashboard reorganizada com categorias
-- ✅ Adicionados exemplos completos dos 3 novos endpoints
+- ✅ Adicionados exemplos completos dos 2 novos endpoints
 
 ---
 

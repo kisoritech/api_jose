@@ -284,7 +284,6 @@ curl -X POST http://localhost:3000/api/auth/login ^
 
 #### Financeiro Completo (Novo)
 - `GET /api/dashboard/financeiro-completo` - Análise financeira completa com PIX, Dinheiro e comparações
-- `GET /api/dashboard/analise-pix-dinheiro` - Análise detalhada de PIX vs Dinheiro
 - `GET /api/dashboard/saldo-caixa-real` - Saldo de caixa em tempo real
 
 #### Relatórios Completos
@@ -834,6 +833,10 @@ Retorna estrutura completa de financeiro:
 **Elementos principais:**
 
 - **resumo**: Total geral, débitos/créditos, status de pagamento
+- **operacoes**: Lista unificada de PIX, dinheiro, creditos e debitos
+- **creditos_debitos**: Totais por tipo e status financeiro
+- **detalhes_pix / detalhes_dinheiro**: Ultimas transacoes por metodo
+- **performance_metodos**: Taxa de sucesso de PIX e dinheiro
 - **analise_pix**: Estatísticas completas de transações PIX
 - **analise_dinheiro**: Estatísticas completas de transações em dinheiro
 - **comparacao_metodos**: PIX vs Dinheiro vs Cartão vs Outros
@@ -841,105 +844,7 @@ Retorna estrutura completa de financeiro:
 - **saldo_por_cliente**: Top 30 clientes com separação por método
 - **tendencia_pagamentos**: Últimos 12 meses de pagamentos
 
-### 20. Análise Detalhada PIX vs Dinheiro
-
-```bash
-curl -X GET http://localhost:3000/api/dashboard/analise-pix-dinheiro ^
-  -H "Authorization: Bearer SEU_TOKEN"
-```
-
-Retorna análise detalhada:
-
-```json
-{
-  "detalhes_pix": [
-    {
-      "venda_id": 15,
-      "criado_em": "2026-05-12T10:30:00Z",
-      "status": "concluida",
-      "valor_pix": "250.50",
-      "cliente_nome": "Cliente A",
-      "cpf": "123.456.789-00",
-      "vendedor": "Jose",
-      "dias_desde_transacao": 0.5
-    }
-  ],
-  "detalhes_dinheiro": [
-    {
-      "venda_id": 14,
-      "criado_em": "2026-05-12T09:15:00Z",
-      "status": "concluida",
-      "valor_dinheiro": "400.00",
-      "cliente_nome": "Cliente B",
-      "cpf": "987.654.321-00",
-      "vendedor": "Jose",
-      "dias_desde_transacao": 0.6
-    }
-  ],
-  "performance": [
-    {
-      "metodo": "pix",
-      "total_transacoes": "35",
-      "valor_total": "8500.00",
-      "valor_medio": "242.86",
-      "transacoes_concluidas": "32",
-      "taxa_sucesso": "91.43"
-    },
-    {
-      "metodo": "dinheiro",
-      "total_transacoes": "15",
-      "valor_total": "4500.00",
-      "valor_medio": "300.00",
-      "transacoes_concluidas": "14",
-      "taxa_sucesso": "93.33"
-    }
-  ],
-  "recebimentos_pix_7dias": [
-    {
-      "data_recebimento": "2026-05-12",
-      "qtd_transacoes": "5",
-      "valor_recebido": "1250.00",
-      "qtd_concluidas": "5"
-    }
-  ],
-  "recebimentos_dinheiro_7dias": [
-    {
-      "data_recebimento": "2026-05-12",
-      "qtd_transacoes": "2",
-      "valor_recebido": "600.00",
-      "qtd_concluidas": "2"
-    }
-  ],
-  "top_clientes_pix": [
-    {
-      "cliente_id": 2,
-      "nome": "Empresa XYZ",
-      "qtd_transacoes_pix": "12",
-      "total_gasto_pix": "3000.00"
-    }
-  ],
-  "top_clientes_dinheiro": [
-    {
-      "cliente_id": 3,
-      "nome": "Cliente ABC",
-      "qtd_transacoes_dinheiro": "8",
-      "total_gasto_dinheiro": "2400.00"
-    }
-  ]
-}
-```
-
-**Elementos principais:**
-
-- **detalhes_pix**: Últimas 50 transações PIX com cliente e vendedor
-- **detalhes_dinheiro**: Últimas 50 transações em dinheiro
-- **performance**: Comparação de taxa de sucesso entre os métodos
-- **recebimentos_pix_7dias**: Fluxo PIX dos últimos 7 dias
-- **recebimentos_dinheiro_7dias**: Fluxo dinheiro dos últimos 7 dias
-- **top_clientes_pix**: Top 10 clientes que mais usam PIX
-- **top_clientes_dinheiro**: Top 10 clientes que mais usam dinheiro
-
-### 21. Saldo de Caixa em Tempo Real
+### 20. Saldo de Caixa em Tempo Real
 
 ```bash
 curl -X GET http://localhost:3000/api/dashboard/saldo-caixa-real ^
