@@ -417,16 +417,16 @@ router.get('/financeiro-completo', async (req, res) => {
     const pixResult = await pool.query(`
       SELECT
         COUNT(*) AS total_transacoes_pix,
-        COALESCE(SUM(valor), 0) AS valor_total_pix,
-        COALESCE(AVG(valor), 0) AS valor_medio_pix,
-        COALESCE(MAX(valor), 0) AS maior_transacao_pix,
-        COALESCE(MIN(valor), 0) AS menor_transacao_pix,
-        COUNT(*) FILTER (WHERE status = 'pago') AS pix_recebido,
-        COUNT(*) FILTER (WHERE status = 'pendente') AS pix_pendente,
-        COALESCE(SUM(CASE WHEN status = 'pago' THEN valor ELSE 0 END), 0) AS pix_valor_recebido,
-        COALESCE(SUM(CASE WHEN status = 'pendente' THEN valor ELSE 0 END), 0) AS pix_valor_pendente
+        COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_total_pix,
+        COALESCE(AVG(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_medio_pix,
+        COALESCE(MAX(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS maior_transacao_pix,
+        COALESCE(MIN(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS menor_transacao_pix,
+        COUNT(*) FILTER (WHERE status = 'concluida') AS pix_recebido,
+        COUNT(*) FILTER (WHERE status IN ('pendente', 'cancelada')) AS pix_pendente,
+        COALESCE(SUM(CASE WHEN status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS pix_valor_recebido,
+        COALESCE(SUM(CASE WHEN status IN ('pendente', 'cancelada') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS pix_valor_pendente
       FROM vendas
-      WHERE forma_pagamento = 'pix' OR forma_pagamento = 'PIX'
+      WHERE forma_pagamento IN ('pix', 'PIX')
     `);
 
     // Análise de Dinheiro

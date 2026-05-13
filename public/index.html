@@ -170,11 +170,44 @@
       <button class="ghost quick-action" data-endpoint="/api/dashboard/movimentacao-geral">Movimentacao Geral</button>
       <button class="ghost quick-action" data-endpoint="/api/dashboard/resumo-operacional">Resumo Operacional</button>
       <button class="ghost quick-action" data-endpoint="/api/dashboard/financeiro-completo">Financeiro Completo</button>
+      <button class="ghost quick-action" data-endpoint="/api/dashboard/analise-pix-dinheiro">Analise PIX/Dinheiro</button>
+      <button class="ghost quick-action" data-endpoint="/api/dashboard/saldo-caixa-real">Saldo Caixa Real</button>
       <button class="ghost quick-action" data-endpoint="/api/dashboard/financeiro-origens">Financeiro por Origem</button>
       <button class="ghost quick-action" data-endpoint="/api/dashboard/produtos-relatorio">Relatorio de Produtos</button>
       <button class="ghost quick-action" data-endpoint="/api/dashboard/vendas-relatorio">Relatorio de Vendas</button>
       <button class="ghost quick-action" data-endpoint="/api/dashboard/locacoes-relatorio">Relatorio de Locacoes</button>
       <button class="ghost quick-action" data-endpoint="/api/dashboard/auditoria-integracao">Auditoria Integracao</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>📊 Documentacao - Novos Endpoints de Financeiro</h2>
+    
+    <div class="helper-card">
+      <strong>🎯 GET /api/dashboard/financeiro-completo</strong>
+      <small>
+        Análise financeira completa com 10 seções: resumo geral, PIX, dinheiro, comparação de métodos, fluxo de caixa diário, saldo por cliente e tendência de pagamentos.
+        <br/><br/>
+        <strong>Principais campos:</strong> total_lancamentos, analise_pix, analise_dinheiro, comparacao_metodos, fluxo_caixa_diario, saldo_por_cliente, tendencia_pagamentos
+      </small>
+    </div>
+
+    <div class="helper-card">
+      <strong>💳 GET /api/dashboard/analise-pix-dinheiro</strong>
+      <small>
+        Análise detalhada de PIX vs Dinheiro com últimas 50 transações de cada método, performance comparativa, recebimentos dos últimos 7 dias e top 10 clientes por método.
+        <br/><br/>
+        <strong>Principais campos:</strong> detalhes_pix, detalhes_dinheiro, performance, recebimentos_pix_7dias, recebimentos_dinheiro_7dias, top_clientes_pix, top_clientes_dinheiro
+      </small>
+    </div>
+
+    <div class="helper-card">
+      <strong>💰 GET /api/dashboard/saldo-caixa-real</strong>
+      <small>
+        Saldo de caixa em tempo real com saldo total de PIX, dinheiro e cartão, entradas do dia, resumo por hora e meta vs realizado dos últimos 30 dias.
+        <br/><br/>
+        <strong>Principais campos:</strong> saldo_caixa, entradas_pix_hoje, entradas_dinheiro_hoje, resumo_por_hora_hoje, meta_vs_realizado_30dias
+      </small>
     </div>
   </div>
 
