@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const path = require('path');
 
 const routes = require('./routes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 const legacyRoutes = require('./routes/legacyRoutes');
 const errorMiddleware = require('./middlewares/errorMiddleware');
 
@@ -48,6 +49,12 @@ app.get('/favicon.ico', (req, res) => {
 
 // Rotas
 app.use('/', legacyRoutes);
+app.use('/dashboard', dashboardRoutes);
+app.use('/financeiro-completo', (req, res, next) => {
+  const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+  req.url = `/financeiro-completo${query}`;
+  dashboardRoutes(req, res, next);
+});
 app.use('/api', routes);
 
 // rota raiz para desenvolvimento: serve index.html se existir

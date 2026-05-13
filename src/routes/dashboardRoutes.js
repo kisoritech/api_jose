@@ -359,6 +359,11 @@ router.get('/financeiro-origens', async (req, res) => {
 
 router.get('/financeiro-completo', async (req, res) => {
   const data = await safeRun(res, 'financeiro completo', async () => {
+    const financeiroTemReferencia = await hasColumn('financeiro_clientes', 'referencia_id');
+    const financeiroReferenciaSelect = financeiroTemReferencia
+      ? 'f.referencia_id'
+      : 'NULL::BIGINT AS referencia_id';
+
     const resumoResult = await pool.query(`
       SELECT
         COUNT(*) AS total_lancamentos,
@@ -413,7 +418,7 @@ router.get('/financeiro-completo', async (req, res) => {
         c.nome AS cliente_nome,
         f.tipo,
         f.origem,
-        f.referencia_id,
+        ${financeiroReferenciaSelect},
         f.valor,
         f.vencimento,
         f.status,
@@ -443,7 +448,7 @@ router.get('/financeiro-completo', async (req, res) => {
       SELECT
         f.origem::text AS origem_operacao,
         f.tipo::text AS tipo_operacao,
-        f.referencia_id,
+        ${financeiroReferenciaSelect},
         f.cliente_id,
         c.nome AS cliente_nome,
         f.valor,
@@ -470,7 +475,7 @@ router.get('/financeiro-completo', async (req, res) => {
       FROM vendas v
       LEFT JOIN clientes c ON c.id = v.cliente_id
       LEFT JOIN usuarios u ON u.id = v.usuario_id
-      WHERE forma_pagamento IN ('pix', 'PIX')
+      WHERE LOWER(v.forma_pagamento::text) = 'pix'
       ORDER BY v.criado_em DESC
       LIMIT 50
     `);
@@ -488,7 +493,7 @@ router.get('/financeiro-completo', async (req, res) => {
       FROM vendas v
       LEFT JOIN clientes c ON c.id = v.cliente_id
       LEFT JOIN usuarios u ON u.id = v.usuario_id
-      WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash')
+      WHERE LOWER(v.forma_pagamento::text) IN ('dinheiro', 'cash')
       ORDER BY v.criado_em DESC
       LIMIT 50
     `);
@@ -505,7 +510,7 @@ router.get('/financeiro-completo', async (req, res) => {
           0
         ) AS taxa_sucesso
       FROM vendas
-      WHERE forma_pagamento IN ('pix', 'PIX')
+      WHERE LOWER(forma_pagamento::text) = 'pix'
 
       UNION ALL
 
@@ -520,7 +525,7 @@ router.get('/financeiro-completo', async (req, res) => {
           0
         ) AS taxa_sucesso
       FROM vendas
-      WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash')
+      WHERE LOWER(forma_pagamento::text) IN ('dinheiro', 'cash')
     `);
 
     // Análise de PIX
@@ -531,7 +536,7 @@ router.get('/financeiro-completo', async (req, res) => {
         COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_recebido,
         COUNT(*) FILTER (WHERE status = 'concluida') AS qtd_concluidas
       FROM vendas
-      WHERE forma_pagamento IN ('pix', 'PIX') AND criado_em >= NOW() - INTERVAL '7 days'
+      WHERE LOWER(forma_pagamento::text) = 'pix' AND criado_em >= NOW() - INTERVAL '7 days'
       GROUP BY DATE(criado_em)
       ORDER BY data_recebimento DESC
     `);
@@ -543,7 +548,7 @@ router.get('/financeiro-completo', async (req, res) => {
         COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_recebido,
         COUNT(*) FILTER (WHERE status = 'concluida') AS qtd_concluidas
       FROM vendas
-      WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') AND criado_em >= NOW() - INTERVAL '7 days'
+      WHERE LOWER(forma_pagamento::text) IN ('dinheiro', 'cash') AND criado_em >= NOW() - INTERVAL '7 days'
       GROUP BY DATE(criado_em)
       ORDER BY data_recebimento DESC
     `);
@@ -556,11 +561,11 @@ router.get('/financeiro-completo', async (req, res) => {
         COALESCE(MAX(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS maior_transacao_pix,
         COALESCE(MIN(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS menor_transacao_pix,
         COUNT(*) FILTER (WHERE status = 'concluida') AS pix_recebido,
-        COUNT(*) FILTER (WHERE status IN ('pendente', 'cancelada')) AS pix_pendente,
+        COUNT(*) FILTER (WHERE status::text IN ('pendente', 'cancelada')) AS pix_pendente,
         COALESCE(SUM(CASE WHEN status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS pix_valor_recebido,
-        COALESCE(SUM(CASE WHEN status IN ('pendente', 'cancelada') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS pix_valor_pendente
+        COALESCE(SUM(CASE WHEN status::text IN ('pendente', 'cancelada') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS pix_valor_pendente
       FROM vendas
-      WHERE forma_pagamento IN ('pix', 'PIX')
+      WHERE LOWER(forma_pagamento::text) = 'pix'
     `);
 
     // Análise de Dinheiro
@@ -572,22 +577,22 @@ router.get('/financeiro-completo', async (req, res) => {
         COALESCE(MAX(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS maior_transacao_dinheiro,
         COALESCE(MIN(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS menor_transacao_dinheiro,
         COUNT(*) FILTER (WHERE status = 'concluida') AS dinheiro_concluido,
-        COUNT(*) FILTER (WHERE status IN ('pendente', 'cancelada')) AS dinheiro_nao_concluido,
+        COUNT(*) FILTER (WHERE status::text IN ('pendente', 'cancelada')) AS dinheiro_nao_concluido,
         COALESCE(SUM(CASE WHEN status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS dinheiro_valor_concluido
       FROM vendas
-      WHERE forma_pagamento = 'dinheiro' OR forma_pagamento = 'DINHEIRO' OR forma_pagamento = 'cash'
+      WHERE LOWER(forma_pagamento::text) IN ('dinheiro', 'cash')
     `);
 
     // Comparação PIX vs Dinheiro
     const comparacaoResult = await pool.query(`
       SELECT
-        COALESCE(SUM(CASE WHEN forma_pagamento IN ('pix', 'PIX') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS total_pix,
-        COALESCE(SUM(CASE WHEN forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS total_dinheiro,
-        COALESCE(SUM(CASE WHEN forma_pagamento IN ('cartao', 'CARTAO', 'card') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS total_cartao,
-        COALESCE(SUM(CASE WHEN forma_pagamento NOT IN ('pix', 'PIX', 'dinheiro', 'DINHEIRO', 'cash', 'cartao', 'CARTAO', 'card') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS total_outros,
-        COUNT(*) FILTER (WHERE forma_pagamento IN ('pix', 'PIX')) AS qtd_pix,
-        COUNT(*) FILTER (WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash')) AS qtd_dinheiro,
-        COUNT(*) FILTER (WHERE forma_pagamento IN ('cartao', 'CARTAO', 'card')) AS qtd_cartao
+        COALESCE(SUM(CASE WHEN LOWER(forma_pagamento::text) = 'pix' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS total_pix,
+        COALESCE(SUM(CASE WHEN LOWER(forma_pagamento::text) IN ('dinheiro', 'cash') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS total_dinheiro,
+        COALESCE(SUM(CASE WHEN LOWER(forma_pagamento::text) IN ('cartao', 'card') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS total_cartao,
+        COALESCE(SUM(CASE WHEN LOWER(forma_pagamento::text) NOT IN ('pix', 'dinheiro', 'cash', 'cartao', 'card') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS total_outros,
+        COUNT(*) FILTER (WHERE LOWER(forma_pagamento::text) = 'pix') AS qtd_pix,
+        COUNT(*) FILTER (WHERE LOWER(forma_pagamento::text) IN ('dinheiro', 'cash')) AS qtd_dinheiro,
+        COUNT(*) FILTER (WHERE LOWER(forma_pagamento::text) IN ('cartao', 'card')) AS qtd_cartao
       FROM vendas
       WHERE status = 'concluida'
     `);
@@ -598,10 +603,10 @@ router.get('/financeiro-completo', async (req, res) => {
         DATE(criado_em) AS data,
         COUNT(*) AS total_transacoes,
         COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_dia,
-        COUNT(*) FILTER (WHERE forma_pagamento IN ('pix', 'PIX')) AS transacoes_pix,
-        COUNT(*) FILTER (WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash')) AS transacoes_dinheiro,
-        COALESCE(SUM(CASE WHEN forma_pagamento IN ('pix', 'PIX') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_pix_dia,
-        COALESCE(SUM(CASE WHEN forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_dinheiro_dia
+        COUNT(*) FILTER (WHERE LOWER(forma_pagamento::text) = 'pix') AS transacoes_pix,
+        COUNT(*) FILTER (WHERE LOWER(forma_pagamento::text) IN ('dinheiro', 'cash')) AS transacoes_dinheiro,
+        COALESCE(SUM(CASE WHEN LOWER(forma_pagamento::text) = 'pix' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_pix_dia,
+        COALESCE(SUM(CASE WHEN LOWER(forma_pagamento::text) IN ('dinheiro', 'cash') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_dinheiro_dia
       FROM vendas
       WHERE status = 'concluida' AND criado_em >= NOW() - INTERVAL '30 days'
       GROUP BY DATE(criado_em)
@@ -613,11 +618,11 @@ router.get('/financeiro-completo', async (req, res) => {
       SELECT
         c.id AS cliente_id,
         c.nome,
-        COALESCE(SUM(CASE WHEN v.forma_pagamento IN ('pix', 'PIX') AND v.status = 'concluida' THEN COALESCE(v.total_final, v.valor_total + COALESCE(v.frete_valor, 0)) ELSE 0 END), 0) AS total_pago_pix,
-        COALESCE(SUM(CASE WHEN v.forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') AND v.status = 'concluida' THEN COALESCE(v.total_final, v.valor_total + COALESCE(v.frete_valor, 0)) ELSE 0 END), 0) AS total_pago_dinheiro,
+        COALESCE(SUM(CASE WHEN LOWER(v.forma_pagamento::text) = 'pix' AND v.status = 'concluida' THEN COALESCE(v.total_final, v.valor_total + COALESCE(v.frete_valor, 0)) ELSE 0 END), 0) AS total_pago_pix,
+        COALESCE(SUM(CASE WHEN LOWER(v.forma_pagamento::text) IN ('dinheiro', 'cash') AND v.status = 'concluida' THEN COALESCE(v.total_final, v.valor_total + COALESCE(v.frete_valor, 0)) ELSE 0 END), 0) AS total_pago_dinheiro,
         COALESCE(SUM(CASE WHEN v.status = 'concluida' THEN COALESCE(v.total_final, v.valor_total + COALESCE(v.frete_valor, 0)) ELSE 0 END), 0) AS total_pago_geral,
-        COUNT(*) FILTER (WHERE v.forma_pagamento IN ('pix', 'PIX') AND v.status = 'concluida') AS qtd_pix,
-        COUNT(*) FILTER (WHERE v.forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') AND v.status = 'concluida') AS qtd_dinheiro
+        COUNT(*) FILTER (WHERE LOWER(v.forma_pagamento::text) = 'pix' AND v.status = 'concluida') AS qtd_pix,
+        COUNT(*) FILTER (WHERE LOWER(v.forma_pagamento::text) IN ('dinheiro', 'cash') AND v.status = 'concluida') AS qtd_dinheiro
       FROM clientes c
       LEFT JOIN vendas v ON v.cliente_id = c.id
       GROUP BY c.id, c.nome
@@ -630,10 +635,10 @@ router.get('/financeiro-completo', async (req, res) => {
     const tendenciaResult = await pool.query(`
       SELECT
         TO_CHAR(DATE_TRUNC('month', criado_em), 'YYYY-MM') AS mes,
-        COUNT(*) FILTER (WHERE forma_pagamento IN ('pix', 'PIX')) AS transacoes_pix,
-        COUNT(*) FILTER (WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash')) AS transacoes_dinheiro,
-        COALESCE(SUM(CASE WHEN forma_pagamento IN ('pix', 'PIX') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_pix_mes,
-        COALESCE(SUM(CASE WHEN forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_dinheiro_mes
+        COUNT(*) FILTER (WHERE LOWER(forma_pagamento::text) = 'pix') AS transacoes_pix,
+        COUNT(*) FILTER (WHERE LOWER(forma_pagamento::text) IN ('dinheiro', 'cash')) AS transacoes_dinheiro,
+        COALESCE(SUM(CASE WHEN LOWER(forma_pagamento::text) = 'pix' AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_pix_mes,
+        COALESCE(SUM(CASE WHEN LOWER(forma_pagamento::text) IN ('dinheiro', 'cash') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_dinheiro_mes
       FROM vendas
       WHERE criado_em >= NOW() - INTERVAL '12 months'
       GROUP BY DATE_TRUNC('month', criado_em)
@@ -669,11 +674,11 @@ router.get('/saldo-caixa-real', async (req, res) => {
     // Saldo atual de caixa
     const saldoCaixaResult = await pool.query(`
       SELECT
-        COALESCE(SUM(CASE WHEN forma_pagamento IN ('pix', 'PIX') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS caixa_pix_recebido,
-        COALESCE(SUM(CASE WHEN forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS caixa_dinheiro,
-        COALESCE(SUM(CASE WHEN forma_pagamento IN ('cartao', 'CARTAO', 'card') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS caixa_cartao,
+        COALESCE(SUM(CASE WHEN LOWER(forma_pagamento::text) = 'pix' AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS caixa_pix_recebido,
+        COALESCE(SUM(CASE WHEN LOWER(forma_pagamento::text) IN ('dinheiro', 'cash') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS caixa_dinheiro,
+        COALESCE(SUM(CASE WHEN LOWER(forma_pagamento::text) IN ('cartao', 'card') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS caixa_cartao,
         COALESCE(SUM(CASE WHEN status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS saldo_total_recebido,
-        COALESCE(SUM(CASE WHEN status IN ('pendente', 'cancelada') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS saldo_pendente_cancelado
+        COALESCE(SUM(CASE WHEN status::text IN ('pendente', 'cancelada') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS saldo_pendente_cancelado
       FROM vendas
     `);
 
@@ -683,7 +688,7 @@ router.get('/saldo-caixa-real', async (req, res) => {
         COUNT(*) AS qtd_pix_hoje,
         COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_pix_hoje
       FROM vendas
-      WHERE forma_pagamento IN ('pix', 'PIX')
+      WHERE LOWER(forma_pagamento::text) = 'pix'
         AND DATE(criado_em) = CURRENT_DATE
         AND status = 'concluida'
     `);
@@ -694,7 +699,7 @@ router.get('/saldo-caixa-real', async (req, res) => {
         COUNT(*) AS qtd_dinheiro_hoje,
         COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS valor_dinheiro_hoje
       FROM vendas
-      WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash')
+      WHERE LOWER(forma_pagamento::text) IN ('dinheiro', 'cash')
         AND DATE(criado_em) = CURRENT_DATE
         AND status = 'concluida'
     `);
@@ -703,10 +708,10 @@ router.get('/saldo-caixa-real', async (req, res) => {
     const resumoPorHoraResult = await pool.query(`
       SELECT
         EXTRACT(HOUR FROM criado_em)::INT AS hora,
-        COUNT(*) FILTER (WHERE forma_pagamento IN ('pix', 'PIX')) AS transacoes_pix,
-        COUNT(*) FILTER (WHERE forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash')) AS transacoes_dinheiro,
-        COALESCE(SUM(CASE WHEN forma_pagamento IN ('pix', 'PIX') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_pix_hora,
-        COALESCE(SUM(CASE WHEN forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_dinheiro_hora
+        COUNT(*) FILTER (WHERE LOWER(forma_pagamento::text) = 'pix') AS transacoes_pix,
+        COUNT(*) FILTER (WHERE LOWER(forma_pagamento::text) IN ('dinheiro', 'cash')) AS transacoes_dinheiro,
+        COALESCE(SUM(CASE WHEN LOWER(forma_pagamento::text) = 'pix' AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_pix_hora,
+        COALESCE(SUM(CASE WHEN LOWER(forma_pagamento::text) IN ('dinheiro', 'cash') AND status = 'concluida' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS valor_dinheiro_hora
       FROM vendas
       WHERE DATE(criado_em) = CURRENT_DATE
       GROUP BY EXTRACT(HOUR FROM criado_em)
@@ -717,8 +722,8 @@ router.get('/saldo-caixa-real', async (req, res) => {
     const metaVsRealizadoResult = await pool.query(`
       SELECT
         DATE(criado_em) AS data,
-        COALESCE(SUM(CASE WHEN forma_pagamento IN ('pix', 'PIX') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS arrecadacao_pix,
-        COALESCE(SUM(CASE WHEN forma_pagamento IN ('dinheiro', 'DINHEIRO', 'cash') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS arrecadacao_dinheiro,
+        COALESCE(SUM(CASE WHEN LOWER(forma_pagamento::text) = 'pix' THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS arrecadacao_pix,
+        COALESCE(SUM(CASE WHEN LOWER(forma_pagamento::text) IN ('dinheiro', 'cash') THEN COALESCE(total_final, valor_total + COALESCE(frete_valor, 0)) ELSE 0 END), 0) AS arrecadacao_dinheiro,
         COALESCE(SUM(COALESCE(total_final, valor_total + COALESCE(frete_valor, 0))), 0) AS arrecadacao_total
       FROM vendas
       WHERE criado_em >= NOW() - INTERVAL '30 days' AND status = 'concluida'
